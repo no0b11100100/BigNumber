@@ -4,11 +4,28 @@
 
 BigNumber::BigNumber::BigNumber(int number)
 {
-    while(number > 0)
-    {
-        m_number.push_front(number%10);
-        number /= 10;
-    }
+    fromInt(number);
+}
+
+BigNumber::BigNumber::BigNumber(std::size_t number)
+{
+    fromInt(number);
+}
+
+BigNumber::BigNumber::BigNumber(float number)
+{
+    fromDouble(number);
+}
+
+BigNumber::BigNumber::BigNumber(double number)
+{
+    fromDouble(number);
+}
+
+BigNumber::BigNumber& BigNumber::BigNumber::operator+(int number)
+{
+    BigNumber a(number);
+    return *this + a;
 }
 
 BigNumber::BigNumber& BigNumber::BigNumber::operator+(BigNumber number)

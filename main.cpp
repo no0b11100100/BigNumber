@@ -11,4 +11,7 @@ int main()
     auto res = a+b;
 
     cout << res.toString() << endl;
+
+    res = res + 10;
+    cout << res.toString() << endl;
 }
