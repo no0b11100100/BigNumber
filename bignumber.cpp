@@ -21,29 +21,32 @@ BigNumber::BigNumber::BigNumber(double number)
 {
     fromDouble(number);
 }
-
+//TODO: fix if value bigger that this
 BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
 {
     auto num = number.toList();
-//    std::list<int>::reverse_iterator it_start;
-//    std::list<int>::reverse_iterator it_end;
-//    std::list<int>::reverse_iterator it_num_start;
-//    std::list<int>::reverse_iterator it_num_end;
+    std::list<int>::reverse_iterator main_start = rbegin(num);
+    std::list<int>::reverse_iterator main_end = rend(num);
+    std::list<int>::reverse_iterator second_start = rbegin(m_number);
+    std::list<int>::reverse_iterator second_end = rend(m_number);
 
-
-//    if(number < *this)
-//    {
-        auto it = rbegin(m_number);
-        auto it_num = rbegin(num);
-//    }
-
-    for(; it_num != rend(num); ++it, ++it_num)
+    bool isBigger = false;
+    if (*this < number)
     {
-        if (*it < *it_num)
+        isBigger = true;
+        main_start = rbegin(m_number); // less
+        main_end = rend(m_number); // less
+        second_start = rbegin(num);
+        second_end = rend(num);
+    }
+
+    for(; main_start != main_end; ++second_start, ++main_start)
+    {
+        if (*second_start < *main_start)
         {
-            *it += 10;
-            *it -= *it_num;
-            for(auto i = std::next(it, 1); i != rend(m_number); ++i)
+            *second_start += 10;
+            *second_start -= *main_start;
+            for(auto i = std::next(second_start, 1); i != second_end; ++i)
             {
                 if(*i == 0) *i = 9;
                 else
@@ -53,10 +56,12 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
                 }
             }
 
-            std::prev(it, 1);
+            std::prev(second_start, 1);
 
-        } else { *it = *it - *it_num; }
+        } else { *second_start -= *main_start; }
     }
+
+    if(isBigger) m_number = num;
 
     for(auto it = begin(m_number); it != end(m_number); ++it)
     {
@@ -164,6 +169,17 @@ std::vector<int> BigNumber::BigNumber::toVector() const
 {
     std::vector<int> result;
     result.reserve(m_number.size());
+    for(const auto& digit : m_number)
+    {
+        result.push_back(digit);
+    }
+
+    return result;
+}
+
+std::deque<int> BigNumber::BigNumber::toDeque() const
+{
+    std::deque<int> result;
     for(const auto& digit : m_number)
     {
         result.push_back(digit);

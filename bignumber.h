@@ -4,6 +4,8 @@
 #include <string>
 #include <iostream>
 #include <cmath>
+#include <exception>
+#include <deque>
 
 namespace BigNumber
 {
@@ -21,11 +23,30 @@ class BigNumber
             number /= 10;
         }
     }
+
+    void fromString(std::string number)
+    {
+        int dotCount = 0;
+        bool isFraction = false;
+        for(auto digit : number)
+        {
+            if(digit == '.')
+            {
+                ++dotCount;
+                if (dotCount > 1) throw std::runtime_error("Invalid number. Got " + number);
+                isFraction = true;
+            }
+
+            if(!isFraction) m_number.push_front(digit-'0');
+            else m_fraction.push_front(digit-'0');
+        }
+    }
+
     void fromDouble(double number)
     {
-//        double fraction;
-//        std::modf(number, fraction);
+        fromString(std::to_string(number));
     }
+
 public:
     BigNumber(int number);
     BigNumber(std::size_t number);
@@ -56,6 +77,7 @@ public:
     std::string toString() const;
     std::list<int> toList() const;
     std::vector<int> toVector() const;
+    std::deque<int> toDeque() const;
 };
 
 } // BigNumber
