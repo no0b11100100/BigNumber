@@ -23,8 +23,8 @@ class BigNumber
     }
     void fromDouble(double number)
     {
-        double fraction;
-        std::modf(number, fraction);
+//        double fraction;
+//        std::modf(number, fraction);
     }
 public:
     BigNumber(int number);
@@ -44,7 +44,7 @@ public:
     BigNumber& operator*(BigNumber);
     BigNumber& operator/(BigNumber);
     BigNumber& operator%(BigNumber);
-    BigNumber& operator<(BigNumber);
+    bool operator<(BigNumber);
     BigNumber& operator<=(BigNumber);
     BigNumber& operator>(BigNumber);
     BigNumber& operator>=(BigNumber);

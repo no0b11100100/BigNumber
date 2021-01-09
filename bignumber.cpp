@@ -22,6 +22,74 @@ BigNumber::BigNumber::BigNumber(double number)
     fromDouble(number);
 }
 
+BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
+{
+    auto num = number.toList();
+//    std::list<int>::reverse_iterator it_start;
+//    std::list<int>::reverse_iterator it_end;
+//    std::list<int>::reverse_iterator it_num_start;
+//    std::list<int>::reverse_iterator it_num_end;
+
+
+//    if(number < *this)
+//    {
+        auto it = rbegin(m_number);
+        auto it_num = rbegin(num);
+//    }
+
+    for(; it_num != rend(num); ++it, ++it_num)
+    {
+        if (*it < *it_num)
+        {
+            *it += 10;
+            *it -= *it_num;
+            for(auto i = std::next(it, 1); i != rend(m_number); ++i)
+            {
+                if(*i == 0) *i = 9;
+                else
+                {
+                    *i -= 1;
+                    break;
+                }
+            }
+
+            std::prev(it, 1);
+
+        } else { *it = *it - *it_num; }
+    }
+
+    for(auto it = begin(m_number); it != end(m_number); ++it)
+    {
+        if(*begin(m_number) != 0) break;
+        m_number.erase(begin(m_number));
+    }
+
+    return *this;
+
+}
+
+bool BigNumber::BigNumber::operator<(BigNumber other)
+{
+    if (m_number.size() < other.toList().size()) return true;
+    else if (m_number.size() > other.toList().size()) return false;
+
+    auto it = this->toList();
+    auto it_other = other.toList();
+
+    for(std::size_t i = 0; i < it.size(); ++i)
+    {
+        auto first_digit = std::next(it.begin(), i);
+        auto second_digit = std::next(it_other.begin(), i);
+
+        if(*first_digit < *second_digit) return true;
+        if(*first_digit > *second_digit) return false;
+    }
+
+    return false;
+
+}
+
+
 BigNumber::BigNumber& BigNumber::BigNumber::operator+(int number)
 {
     BigNumber a(number);

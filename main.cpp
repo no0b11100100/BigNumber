@@ -14,4 +14,10 @@ int main()
 
     res = res + 10;
     cout << res.toString() << endl;
+
+    res = res - 30;
+    cout << res.toString() << endl;
+
+    res = res - 45;
+    cout << res.toString() << endl;
 }
