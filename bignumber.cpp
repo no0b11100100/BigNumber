@@ -31,7 +31,7 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
 {
     auto num = number.toList();
 
-    //TODO: make nirmal names
+    //TODO: make normal names
     auto main_start = rbegin(num);
     auto main_end = rend(num);
     auto second_start = rbegin(m_number);
@@ -45,6 +45,7 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
         {
             m_number.push_front(0);
         }
+
         isBigger = true;
         main_start = rbegin(m_number);
         main_end = rend(m_number);
@@ -57,6 +58,7 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
     {
         if (*second_start < *main_start)
         {
+            // TODO: remove to separate function
             *second_start += (10 - *main_start);
             if(isBigger) *main_start = *second_start;
 
@@ -81,16 +83,15 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
 
     for(auto it = begin(m_number); it != end(m_number);)
     {
-        if(*it == 0)
-            it = m_number.erase(it);
+        if(*it == 0) it = m_number.erase(it);
         else
         {
             ++it;
             break;
         }
     }
-    return *this;
 
+    return *this;
 }
 
 bool BigNumber::BigNumber::operator<(BigNumber other)
@@ -111,9 +112,50 @@ bool BigNumber::BigNumber::operator<(BigNumber other)
     }
 
     return false;
-
 }
 
+bool BigNumber::BigNumber::operator>(BigNumber other)
+{
+    if (m_number.size() > other.toList().size()) return true;
+    else if (m_number.size() < other.toList().size()) return false;
+
+    auto it = this->toList();
+    auto it_other = other.toList();
+
+    for(std::size_t i = 0; i < it.size(); ++i)
+    {
+        auto first_digit = std::next(it.begin(), i);
+        auto second_digit = std::next(it_other.begin(), i);
+
+        if(*first_digit > *second_digit) return true;
+        if(*first_digit < *second_digit) return false;
+    }
+
+    return false;
+}
+
+bool BigNumber::BigNumber::operator==(BigNumber other)
+{
+    if(m_number.size() != other.toList().size()) return false;
+
+    auto it = this->toList();
+    auto it_other = other.toList();
+
+    for(std::size_t i = 0; i < it.size(); ++i)
+    {
+        auto first_digit = std::next(it.begin(), i);
+        auto second_digit = std::next(it_other.begin(), i);
+
+        if(*first_digit != *second_digit) return false;
+    }
+
+    return true;
+}
+
+bool BigNumber::BigNumber::operator!=(BigNumber other)
+{
+    return !(*this == other);
+}
 
 BigNumber::BigNumber& BigNumber::BigNumber::operator+(int number)
 {
@@ -139,6 +181,7 @@ BigNumber::BigNumber& BigNumber::BigNumber::operator+(BigNumber number)
 
     for(; it_num != rend(num); ++it, ++it_num)
     {
+        // TODO: remove to separate function
         int digit = *it + *it_num;
         if(digit > 9)
         {
@@ -153,14 +196,11 @@ BigNumber::BigNumber& BigNumber::BigNumber::operator+(BigNumber number)
                     *i = digit - 10;
                     *(std::next(i, 1)) += 1;
                 }
-                else { break; }
+                else break;
             }
             std::prev(it, count+1);
         }
-        else
-        {
-            *it = digit;
-        }
+        else *it = digit;
     }
 
     return *this;
@@ -189,6 +229,7 @@ std::vector<int> BigNumber::BigNumber::toVector() const
 {
     std::vector<int> result;
     result.reserve(m_number.size());
+
     for(const auto& digit : m_number)
     {
         result.push_back(digit);
@@ -200,6 +241,7 @@ std::vector<int> BigNumber::BigNumber::toVector() const
 std::deque<int> BigNumber::BigNumber::toDeque() const
 {
     std::deque<int> result;
+
     for(const auto& digit : m_number)
     {
         result.push_back(digit);
