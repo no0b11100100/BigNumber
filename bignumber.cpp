@@ -31,6 +31,7 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
 {
     auto num = number.toList();
 
+    //TODO: make nirmal names
     auto main_start = rbegin(num);
     auto main_end = rend(num);
     auto second_start = rbegin(m_number);
@@ -45,8 +46,8 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
             m_number.push_front(0);
         }
         isBigger = true;
-        main_start = rbegin(m_number); // less
-        main_end = rend(m_number); // less
+        main_start = rbegin(m_number);
+        main_end = rend(m_number);
         second_start = rbegin(num);
         second_end = rend(num);
         std::cout << "handle\n";

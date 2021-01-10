@@ -25,16 +25,11 @@ class BigNumber
 
     void fromString(std::string number)
     {
-        int dotCount = 0;
+        validateNumber(number);
         bool isFraction = false;
         for(auto digit : number)
         {
-            if(digit == '.')
-            {
-                ++dotCount;
-                if (dotCount > 1) throw std::runtime_error("Invalid number. Number is not int or double. Got " + number);
-                isFraction = true;
-            }
+            if(digit == '.') isFraction = true;
 
             if(!isFraction) m_number.push_front(digit-'0');
             else m_fraction.push_front(digit-'0');
@@ -46,7 +41,69 @@ class BigNumber
         fromString(std::to_string(number));
     }
 
+    void fromVector(const std::vector<int>& number)
+    {
+        validateNumber(number);
+        for(auto& digit : number)
+        {
+            m_number.push_front(digit);
+        }
+    }
+
+    void fromList(const std::list<int>& number)
+    {
+        validateNumber(number);
+        for(auto& digit : number)
+        {
+            m_number.push_front(digit);
+        }
+    }
+
+    void fromDeque(const std::deque<int>& number)
+    {
+        validateNumber(number);
+        for(auto& digit : number)
+        {
+            m_number.push_front(digit);
+        }
+    }
+
+    // For container
+    template<class T>
+    void validateNumber(T number)
+    {
+        bool first = false;
+        for(auto digit : number)
+        {
+            if(first == false)
+            {
+                first = true;
+                if(digit > 9 || digit < -9) throw std::runtime_error("Invalid number");
+            }
+            if(digit > 9 || digit < 0) throw std::runtime_error("Invalid number");
+        }
+    }
+
+    void validateNumber(std::string number)
+    {
+        char fisrtDigit = number[0];
+
+        if(fisrtDigit < '0' || fisrtDigit > '9' || fisrtDigit != '-') throw std::runtime_error("Invalid number");
+        if(fisrtDigit == '-' && number[1] == '.') throw std::runtime_error("Invalid number");
+
+        for(std::size_t i = 1, dotCounter = 0; i < number.length(); ++i)
+        {
+            if(number[i] < '0' || number[i] > '9' || number[i] != '.') throw std::runtime_error("Invalid number");
+            if(number[i] == '.')
+            {
+                ++dotCounter;
+                if(dotCounter > 1) throw std::runtime_error("Invalid number");
+            }
+        }
+    }
+
 public:
+
     BigNumber(int number);
     BigNumber(std::size_t number);
     BigNumber(double number);
@@ -64,6 +121,13 @@ public:
     BigNumber& operator*(BigNumber);
     BigNumber& operator/(BigNumber);
     BigNumber& operator%(BigNumber);
+
+//    template<typename T>
+//    BigNumber& pow(BigNumber, T degree);
+
+//    template<typename T, typename Mod>
+//    BigNumber& pow_mod(BigNumber, T degree, Mod modulo);
+
     bool operator<(BigNumber);
     bool operator<=(BigNumber);
     bool operator>(BigNumber);
