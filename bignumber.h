@@ -1,11 +1,10 @@
 #pragma once
 #include <list>
 #include <vector>
+#include <deque>
 #include <string>
 #include <iostream>
-#include <cmath>
 #include <exception>
-#include <deque>
 
 namespace BigNumber
 {
@@ -33,7 +32,7 @@ class BigNumber
             if(digit == '.')
             {
                 ++dotCount;
-                if (dotCount > 1) throw std::runtime_error("Invalid number. Got " + number);
+                if (dotCount > 1) throw std::runtime_error("Invalid number. Number is not int or double. Got " + number);
                 isFraction = true;
             }
 
@@ -66,11 +65,11 @@ public:
     BigNumber& operator/(BigNumber);
     BigNumber& operator%(BigNumber);
     bool operator<(BigNumber);
-    BigNumber& operator<=(BigNumber);
-    BigNumber& operator>(BigNumber);
-    BigNumber& operator>=(BigNumber);
-    BigNumber& operator==(BigNumber);
-    BigNumber& operator!=(BigNumber);
+    bool operator<=(BigNumber);
+    bool operator>(BigNumber);
+    bool operator>=(BigNumber);
+    bool operator==(BigNumber);
+    bool operator!=(BigNumber);
     std::ostream& operator<<(BigNumber);
     std::istream& operator>>(int);
 

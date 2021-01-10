@@ -17,35 +17,48 @@ BigNumber::BigNumber::BigNumber(float number)
     fromDouble(number);
 }
 
+BigNumber::BigNumber::BigNumber(std::string number)
+{
+    fromString(number);
+}
+
 BigNumber::BigNumber::BigNumber(double number)
 {
     fromDouble(number);
 }
-//TODO: fix if value bigger that this
+
 BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
 {
     auto num = number.toList();
-    std::list<int>::reverse_iterator main_start = rbegin(num);
-    std::list<int>::reverse_iterator main_end = rend(num);
-    std::list<int>::reverse_iterator second_start = rbegin(m_number);
-    std::list<int>::reverse_iterator second_end = rend(m_number);
+
+    auto main_start = rbegin(num);
+    auto main_end = rend(num);
+    auto second_start = rbegin(m_number);
+    auto second_end = rend(m_number);
 
     bool isBigger = false;
     if (*this < number)
     {
+        int diff = num.size() - m_number.size();
+        for(int i = 0; i < diff; ++i)
+        {
+            m_number.push_front(0);
+        }
         isBigger = true;
         main_start = rbegin(m_number); // less
         main_end = rend(m_number); // less
         second_start = rbegin(num);
         second_end = rend(num);
+        std::cout << "handle\n";
     }
 
     for(; main_start != main_end; ++second_start, ++main_start)
     {
         if (*second_start < *main_start)
         {
-            *second_start += 10;
-            *second_start -= *main_start;
+            *second_start += (10 - *main_start);
+            if(isBigger) *main_start = *second_start;
+
             for(auto i = std::next(second_start, 1); i != second_end; ++i)
             {
                 if(*i == 0) *i = 9;
@@ -57,18 +70,24 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
             }
 
             std::prev(second_start, 1);
-
-        } else { *second_start -= *main_start; }
+        }
+        else
+        {
+            *second_start -= *main_start;
+            if(isBigger) *main_start = *second_start;
+        }
     }
 
-    if(isBigger) m_number = num;
-
-    for(auto it = begin(m_number); it != end(m_number); ++it)
+    for(auto it = begin(m_number); it != end(m_number);)
     {
-        if(*begin(m_number) != 0) break;
-        m_number.erase(begin(m_number));
+        if(*it == 0)
+            it = m_number.erase(it);
+        else
+        {
+            ++it;
+            break;
+        }
     }
-
     return *this;
 
 }
