@@ -117,6 +117,47 @@ public:
     BigNumber& operator+(float);
     BigNumber& operator+(std::string);
 
+    //TODO: remake to fit my needs
+    int mod(std::string num, int a)
+    {
+        // Initialize result
+        int res = 0;
+
+        // One by one process all digits of 'num'
+        for (std::size_t i = 0; i < num.length(); i++)
+             res = (res*10 + (int)num[i] - '0') %a;
+
+        return res;
+    }
+
+    //TODO: remake to fit my needs
+    std::string longDivision(std::string number, int divisor)
+    {
+        std::string ans;
+        std::size_t idx = 0;
+        int temp = number[idx] - '0';
+        while (temp < divisor)
+            temp = temp * 10 + (number[++idx] - '0');
+
+        // Repeatedly divide divisor with temp. After
+        // every division, update temp to include one
+        // more digit.
+        while (number.size() > idx) {
+            // Store result in answer i.e. temp / divisor
+            ans += (temp / divisor) + '0';
+
+            // Take next digit of number
+            temp = (temp % divisor) * 10 + number[++idx] - '0';
+        }
+
+        // If divisor is greater than number
+        if (ans.length() == 0)
+            return "0";
+
+        // else return ans
+        return ans;
+    }
+
     BigNumber& operator-(BigNumber);
     BigNumber& operator*(BigNumber);
     BigNumber& operator/(BigNumber);
