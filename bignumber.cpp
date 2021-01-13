@@ -94,6 +94,22 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
     return *this;
 }
 
+BigNumber::BigNumber &BigNumber::BigNumber::operator/(BigNumber number)
+{
+    if(*(number.toList().begin()) > *(m_number.begin()))
+    {
+        int i = ( (*(m_number.begin()) * 10 + *(std::next(begin(m_number), 1))) ) / *(number.toList().begin());
+        std::cout << "bigger " << i << std::endl;
+    }
+    else
+    {
+        int i = *(m_number.begin()) / *(number.toList().begin());
+        std::cout << "smaller " << i << std::endl;
+    }
+
+    return *this;
+}
+
 bool BigNumber::BigNumber::operator<(BigNumber other)
 {
     if (m_number.size() < other.toList().size()) return true;
