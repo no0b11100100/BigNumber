@@ -1,5 +1,6 @@
 #include <iostream>
 #include "bignumber.h"
+#include <map>
 
 using namespace std;
 
@@ -24,5 +25,7 @@ int main()
 //    a = a - 10000;
 //    cout << a.toString() << endl;
 
-    a/b;
+    auto r = a%19;
+    cout << r.toString() << endl;
+
 }

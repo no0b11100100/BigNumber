@@ -110,6 +110,16 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator/(BigNumber number)
     return *this;
 }
 
+BigNumber::BigNumber BigNumber::BigNumber::operator%(int number)
+{
+    int res = 0;
+
+    for (auto it = begin(m_number); it != end(m_number); ++it)
+         res = (res*10 + *it) % number;
+
+    return BigNumber(res);
+}
+
 bool BigNumber::BigNumber::operator<(BigNumber other)
 {
     if (m_number.size() < other.toList().size()) return true;

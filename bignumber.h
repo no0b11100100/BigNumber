@@ -5,7 +5,8 @@
 #include <string>
 #include <iostream>
 #include <exception>
-
+// https://handwiki.org/wiki/Computational_complexity_of_mathematical_operations
+// http://numbers.computation.free.fr/Constants/Programs/programs.html
 namespace BigNumber
 {
 class BigNumber
@@ -118,25 +119,13 @@ public:
     BigNumber& operator+(std::string);
 
     //TODO: remake to fit my needs
-    int mod(std::string num, int a)
-    {
-        // Initialize result
-        int res = 0;
-
-        // One by one process all digits of 'num'
-        for (std::size_t i = 0; i < num.length(); i++)
-             res = (res*10 + (int)num[i] - '0') %a;
-
-        return res;
-    }
-
-    //TODO: remake to fit my needs
     std::string longDivision(std::string number, int divisor) // one more https://www.geeksforgeeks.org/program-quotient-remainder-big-number/
     {
         std::string ans;
         std::size_t idx = 0;
         int temp = number[idx] - '0';
         while (temp < divisor)
+            // binary search?
             temp = temp * 10 + (number[++idx] - '0');
 
         // Repeatedly divide divisor with temp. After
@@ -159,9 +148,10 @@ public:
     }
 
     BigNumber& operator-(BigNumber);
-    BigNumber& operator*(BigNumber); // Алгоритм Фюрера или Карацубы
-    BigNumber &operator/(BigNumber);
-    BigNumber& operator%(BigNumber);
+    BigNumber& operator*(BigNumber); // Алгоритм Фюрера или Карацубы http://hardfire.ru/fft_mul https://rosettacode.org/wiki/Fast_Fourier_transform#C.2B.2B http://acm.mipt.ru/twiki/bin/view/Algorithms/FastFourierTransformCPP
+    BigNumber &operator/(BigNumber); // https://www.ideone.com/Q3omVw https://habr.com/ru/post/172285/ https://www.youtube.com/watch?v=dmXqCqz9Y_0 https://medium.com/@dip_kush04/operations-on-big-integers-and-finding-the-modulo-multiplicative-inverse-6b6e934fbe60
+                                    // https://www.more-magic.net/posts/numeric-tower-part-3.html
+    BigNumber operator%(int);
 
 //    template<typename T>
 //    BigNumber& pow(BigNumber, T degree);
@@ -195,7 +185,7 @@ public:
 } // BigNumber
 
 // https://habr.com/ru/post/262705/
-
+// https://infourok.ru/dlinnaya-arifmetika-na-c-opisanie-modeli-realizaciya-zadachi-1959820.html
 //#include <cstdlib>   // for rand()
 //#include <iostream>  // for cout
 //#include <math.h>    // for pow()
@@ -464,7 +454,7 @@ public:
 //   }
 //   return n;
 //}
-//void schonhageStrassenMultiplication(long a, long b, int n, int m) {
+//void schonhageStrassenMultiplication(long a, long b, int n, int m) { // https://martin-thoma.com/strassen-algorithm-in-python-java-cpp/
 //   int linearConvolution[n + m - 1];
 //   for (int i = 0; i < (n + m - 1); i++)
 //      linearConvolution[i] = 0;
