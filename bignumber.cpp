@@ -1,6 +1,7 @@
 #include "bignumber.h"
 #include <iostream>
 #include <algorithm>
+#include <cmath>
 
 BigNumber::BigNumber::BigNumber(int number)
 {
@@ -90,6 +91,50 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
             break;
         }
     }
+
+    return *this;
+}
+
+BigNumber::BigNumber BigNumber::BigNumber::operator/(BigNumber number)
+{
+    if(m_number.size() < number.toList().size())
+    {
+        return BigNumber(0);
+    }
+
+//    if(m_number.size() == number.toList().size())
+//    {
+//        int i;
+//        int step = 0;
+//        if(*(number.toList().begin()) > *(m_number.begin()))
+//        {
+//            i = ( (*(m_number.begin()) * 10 + *(std::next(begin(m_number), 1))) ) / *(number.toList().begin());
+//            step = 2;
+//            std::cout << "bigger " << i << std::endl;
+//        }
+//        else
+//        {
+//            i = *(m_number.begin()) / *(number.toList().begin());
+//            step = 1;
+//            std::cout << "smaller " << i << std::endl;
+//        }
+
+//        auto it_sec = std::next(number.toList().begin(), step);
+//        for(auto it = std::next(begin(m_number), 1); it_sec != end(number.toList()); ++it, ++it_sec)
+//        {
+//            std::cout << "res " << std::endl;
+//            if(*it > *it_sec)
+//            {
+//                double div = (double)i / 2;
+//                i = ceil(div);
+//                break;
+//            }
+//        }
+
+//        std::cout << "res " << i << std::endl;
+
+//        return BigNumber(i);
+//    }
 
     return *this;
 }

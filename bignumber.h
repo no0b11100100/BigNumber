@@ -16,6 +16,12 @@ class BigNumber
     template<typename T, class = typename std::enable_if_t<std::is_same_v<T, int> || std::is_same_v<T, std::size_t> > >
     void fromInt(T number)
     {
+        if(number == 0)
+        {
+            m_number.push_back(0);
+            return;
+        }
+
         while(number > 0)
         {
             m_number.push_front(number%10);
@@ -160,7 +166,7 @@ public:
 
     BigNumber& operator-(BigNumber);
     BigNumber& operator*(BigNumber);
-    BigNumber& operator/(BigNumber);
+    BigNumber operator/(BigNumber);
     BigNumber& operator%(BigNumber);
 
 //    template<typename T>
