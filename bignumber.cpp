@@ -107,14 +107,6 @@ using comp = std::complex < double >;
 using vcomp = std::vector < comp >;
 using sint = int;
 using vsint  = std::vector < sint >;
-#define sz size ()
-#define at(v, i) (0 <= (i) && (i) < (v).size () ? v[i] : 0)
-#define erase_null(v) while ((v).size () > 1 && (v).back () == 0) (v).pop_back ();
-#define next_mod(v, i)     if (0 <= (i) + 1 && (i) + 1 < (v).size ()) \
-{\
-    v[(i) + 1] += v[(i)] / 10;\
-    v[(i)] %= 10; \
-}
 
 class Mult
 {
