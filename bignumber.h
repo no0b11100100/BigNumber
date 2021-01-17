@@ -115,6 +115,7 @@ public:
     BigNumber(double number);
     BigNumber(float number);
     BigNumber(std::string number);
+    BigNumber(std::list<int> number);
 
     BigNumber& operator+(BigNumber);
     BigNumber& operator+(int);
@@ -165,7 +166,7 @@ public:
     }
 
     BigNumber& operator-(BigNumber);
-    BigNumber& operator*(BigNumber);
+    BigNumber operator*(BigNumber);
     BigNumber operator/(BigNumber);
     BigNumber& operator%(BigNumber);
 

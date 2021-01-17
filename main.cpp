@@ -24,6 +24,7 @@ int main()
 //    a = a - 10000;
 //    cout << a.toString() << endl;
 
-    cout << (a/b).toString() << endl;
+//    cout << (a/b).toString() << endl;
+    cout << (a*b).toString() << endl;
 
 }

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cmath>
+#include <complex>
 
 BigNumber::BigNumber::BigNumber(int number)
 {
@@ -21,6 +22,11 @@ BigNumber::BigNumber::BigNumber(float number)
 BigNumber::BigNumber::BigNumber(std::string number)
 {
     fromString(number);
+}
+
+BigNumber::BigNumber::BigNumber(std::list<int> number)
+{
+    fromList(number);
 }
 
 BigNumber::BigNumber::BigNumber(double number)
@@ -95,45 +101,228 @@ BigNumber::BigNumber &BigNumber::BigNumber::operator-(BigNumber number)
     return *this;
 }
 
+namespace
+{ // https://www.ideone.com/w8YSma
+using comp = std::complex < double >;
+using vcomp = std::vector < comp >;
+using sint = int;
+using vsint  = std::vector < sint >;
+#define sz size ()
+#define at(v, i) (0 <= (i) && (i) < (v).size () ? v[i] : 0)
+#define erase_null(v) while ((v).size () > 1 && (v).back () == 0) (v).pop_back ();
+#define next_mod(v, i)     if (0 <= (i) + 1 && (i) + 1 < (v).size ()) \
+{\
+    v[(i) + 1] += v[(i)] / 10;\
+    v[(i)] %= 10; \
+}
+
+class Mult
+{
+    int reverse_bits (int a, int n)
+    {
+        int res = 0;
+        for (int i = 0; i < n; ++ i)
+        {
+            res <<= 1;
+            res |= a & 1;
+            a >>= 1;
+        }
+        return res;
+    }
+    int logn (int a)
+    {
+        int cnt = 0;
+        do
+        {
+            ++ cnt;
+            a >>= 1;
+        }
+        while (a);
+        return cnt;
+    }
+    int topow2 (int a)
+    {
+        for (int i = 0; i < 32; ++ i)
+            if ((1 << i) >= a)
+                return 1 << i;
+        return - 1;
+    }
+    void swap_revbits (vcomp & a)
+    {
+        int l = logn (a.size ()) - 1;
+        vcomp res (a.size ());
+        for (std::size_t i = 0; i < a.size  (); ++ i)
+            res[i] = a[reverse_bits (i, l)];
+        a = res;
+    }
+    void fft (vcomp & a, bool back)
+    {
+        swap_revbits (a);
+        int n = a.size ();
+        double t = (back ? - 1 : 1);
+
+        for (int m = 2; m <= n; m *= 2)
+        {
+            comp wm (cos (t * 2 * M_PI / (double)m), sin (t * 2 * M_PI / (double)m));
+
+            for (int k = 0; k < n; k += m)
+            {
+                comp w (1);
+                for (int j = 0; j < m / 2; ++ j)
+                {
+                    comp a0 = a[k + j];
+                    comp w_a1 = w * a[k + j + m / 2];
+                    a[k + j] = a0 + w_a1;
+                    a[k + j + m / 2] = a0 - w_a1;
+
+                    if (back)
+                    {
+                        a[k + j] /= 2.0;
+                        a[k + j + m / 2] /= 2.0;
+                    }
+                    w *= wm;
+                }
+            }
+        }
+    }
+
+public:
+    vsint fft_mul (vsint a, vsint b)
+    {
+        int n = topow2 (std::max (a.size (), b.size ())) * 2;
+        a.resize (n);
+        b.resize (n);
+
+        vcomp ac (a.begin (), a.end ());
+        vcomp bc (b.begin (), b.end ());
+
+        fft (ac, false);
+        fft (bc, false);
+
+        vcomp cc (n);
+        for (int i = 0; i < n; ++ i)
+            cc[i] = ac[i] * bc[i];
+        fft (cc, true);
+
+        vsint c (n, 0);
+        for (int i = 0; i < n; ++ i)
+            c[i] += (int)(cc[i].real () + 0.5);
+        for (int i = 0; i < n - 1; ++ i)
+            if (c[i] > 9)
+            {
+                c[i + 1] += c[i] / 10;
+                c[i] %= 10;
+            }
+        while (c[c.size () - 1] > 9)
+        {
+            c.push_back (c[c.size () - 1] / 10);
+            c[c.size () - 2] %= 10;
+        }
+
+        while (c.back () == 0 && c.size () > 1)
+            c.pop_back ();
+
+        return c;
+    }
+
+};
+} // namespace
+
+BigNumber::BigNumber BigNumber::BigNumber::operator*(BigNumber number)
+{
+    Mult mult;
+    m_number.reverse();
+    auto l = number.toVector();
+    std::reverse(begin(l), end(l));
+    auto res = mult.fft_mul(this->toVector(), l);
+
+    std::list<int> resList;
+
+    for(auto it = rbegin(res); it != rend(res); ++it)
+    {
+        resList.push_front(*it);
+    }
+
+    return BigNumber(resList);
+
+}
+
 BigNumber::BigNumber BigNumber::BigNumber::operator/(BigNumber number)
 {
-    if(m_number.size() < number.toList().size())
+    if(m_number.size() < number.toList().size() || m_number < number.toList())
     {
         return BigNumber(0);
     }
 
-//    if(m_number.size() == number.toList().size())
+
+//    static unsigned int find_first_bit(uint32_t value) {
+//    #   ifdef _MSC_VER
+//        unsigned long index;
+//        (void) _BitScanReverse(&index, value);
+//        return index + 1;
+//    #   else
+//        unsigned int count = 0;
+//        for(count = 0; value; ++count)
+//            value >>= 1;
+//        return count;
+//    #   endif
+//    }
+
+
+//    uint32_t divide(const uint32_t *num, const uint32_t *den, size_t len) {
+//        uint32_t norm_den;
+//        uint64_t norm_num = 0;
+//        size_t top = 0;
+//        while(norm_den = den[top], !norm_den)
+//            norm_num = num[top++];
+//        assert(len >= top + 3);
+
+//        unsigned int norm = find_first_bit(norm_den);
+//        norm_num = norm_num << (64 - norm);
+//        norm_num |= ((uint64_t) num[top + 0] << 32 | num[top + 1]) >> norm;
+//        norm_den = ((uint64_t) norm_den << 32 | den[top + 1]) >> norm;
+
+//        uint32_t quot = (uint32_t) (norm_num / norm_den);
+
+//        uint32_t rem = norm_num % norm_den;
+
+//        norm_num = ((uint64_t) num[top + 1] << 32 | num[top + 2]) >> norm;
+//        norm_num = (uint64_t) rem << 32 | (uint32_t) norm_num;
+//        norm_den = ((uint64_t) den[top + 1] << 32 | den[top + 2]) >> norm;
+//        if((uint64_t) quot * norm_den > norm_num) {
+//            --quot;
+
+//        }
+
+//        uint64_t accum = 0;
+//        do {
+//            uint64_t prod = (uint64_t) quot * *den++;
+//            accum = accum << 32 | *num++;
+
+//            if(accum < prod)
+//                return --quot;
+//            accum -= prod;
+
+//            if((uint64_t) accum >= 0x100000000)
+//                return quot;
+//        } while(--len);
+//        return quot;
+//    }
+
+//    int main()
 //    {
-//        int i;
-//        int step = 0;
-//        if(*(number.toList().begin()) > *(m_number.begin()))
-//        {
-//            i = ( (*(m_number.begin()) * 10 + *(std::next(begin(m_number), 1))) ) / *(number.toList().begin());
-//            step = 2;
-//            std::cout << "bigger " << i << std::endl;
-//        }
-//        else
-//        {
-//            i = *(m_number.begin()) / *(number.toList().begin());
-//            step = 1;
-//            std::cout << "smaller " << i << std::endl;
-//        }
+//        const uint32_t a[] = {824433244, 321654323, 000000000};
+//        const uint32_t b[] = {243324432, 142350000, 000000000};
 
-//        auto it_sec = std::next(number.toList().begin(), step);
-//        for(auto it = std::next(begin(m_number), 1); it_sec != end(number.toList()); ++it, ++it_sec)
-//        {
-//            std::cout << "res " << std::endl;
-//            if(*it > *it_sec)
-//            {
-//                double div = (double)i / 2;
-//                i = ceil(div);
-//                break;
-//            }
-//        }
+//        auto start = high_resolution_clock::now();
+//        std::cout << divide(a, b, 3) << std::endl;
+//        auto stop = high_resolution_clock::now();
 
-//        std::cout << "res " << i << std::endl;
+//        auto duration = duration_cast<microseconds>(stop - start);
 
-//        return BigNumber(i);
+//        cout << duration.count() << endl;
+
+//        return 0;
 //    }
 
     return *this;
