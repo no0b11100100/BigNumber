@@ -151,7 +151,7 @@ public:
     BigNumber& operator*(BigNumber); // Алгоритм Фюрера или Карацубы http://hardfire.ru/fft_mul https://rosettacode.org/wiki/Fast_Fourier_transform#C.2B.2B http://acm.mipt.ru/twiki/bin/view/Algorithms/FastFourierTransformCPP
     BigNumber &operator/(BigNumber); // https://www.ideone.com/Q3omVw https://habr.com/ru/post/172285/ https://www.youtube.com/watch?v=dmXqCqz9Y_0 https://medium.com/@dip_kush04/operations-on-big-integers-and-finding-the-modulo-multiplicative-inverse-6b6e934fbe60
                                     // https://www.more-magic.net/posts/numeric-tower-part-3.html
-    BigNumber operator%(int);
+    BigNumber operator%(int); // https://www.geeksforgeeks.org/compute-modulus-division-by-a-power-of-2-number/
 
 //    template<typename T>
 //    BigNumber& pow(BigNumber, T degree);
