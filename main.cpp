@@ -6,7 +6,7 @@ using namespace std;
 int main()
 {
     BigNumber::BigNumber a(8769);
-    BigNumber::BigNumber b(1090);
+    BigNumber::BigNumber b(10905);
 
 //    auto res = a+b;
 
