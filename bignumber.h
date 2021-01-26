@@ -26,6 +26,7 @@ constexpr bool is_integer()
             std::is_same_v<T, unsigned long> ||
             std::is_same_v<T, long long> ||
             std::is_same_v<T, unsigned long long> ||
+            std::is_same_v<T, signed long long> ||
             std::is_same_v<T, uint8_t> ||
             std::is_same_v<T, uint16_t> ||
             std::is_same_v<T, uint32_t> ||
@@ -50,6 +51,13 @@ using is_container_t = typename std::enable_if_t< std::is_same_v< is_allow_conta
 
 } // namespace
 
+enum class BASE
+{
+    BINARY,
+    OCTAL,
+    DECIMAL,
+    HEXADECIMAL
+};
 
 class BigInt
 {
@@ -100,7 +108,6 @@ public:
         {
 //            newNumber -= m_number;
         }
-
         return BigInt();
     }
 
