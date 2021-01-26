@@ -1,12 +1,13 @@
 #pragma once
 #include <iostream>
 #include <list>
-#include <string>
+#include <vector>
+#include <deque>
 #include <algorithm>
 #include <map>
 
-//namespace BigInt
-//{
+namespace BigInt
+{
 
 namespace
 {
@@ -32,8 +33,20 @@ constexpr bool is_integer()
             std::is_same_v<T, std::size_t>;
 }
 
+template<typename T>
+constexpr bool is_allow_container()
+{
+    return std::is_same_v<T, std::vector> ||
+           std::is_same_v<T, std::list> ||
+           std::is_same_v<T, std::deque>;
+}
+
 template<class T>
-using is_integer_t = typename std::enable_if_t< std::is_same_v< is_integer<T>(), true> >;
+using is_integer_t = typename std::enable_if_t< std::is_same_v< is_integer<T>(), true > >;
+
+template <class Container>
+using is_container_t = typename std::enable_if_t< std::is_same_v< is_allow_container<Container>(), true > &&
+                                                  std::is_same_v< is_integer_t<typename Container::value_type>(), true > >;
 
 } // namespace
 
@@ -50,15 +63,20 @@ class BigInt
         }
     }
 
-    void shift(int loops, bool direction = false)
+    template<typename T>
+    void shift(std::list<T>& number, int loops, bool direction = false)
     {
-        if(!direction) for(int i = 0; i < loops; ++i) m_number.pop_back();
-        else for(int i = 0; i < loops; ++i) m_number.push_back(0);
+        if(!direction) for(int i = 0; i < loops; ++i) number.pop_back();
+        else for(int i = 0; i < loops; ++i) number.push_back(0);
     }
 
 public:
     template< typename T, is_integer_t<T> >
     BigInt(T){}
+
+    template < class T, is_container_t<T> >
+    BigInt(T){}
+
     BigInt() {}
     BigInt(int number)
     {
@@ -71,32 +89,33 @@ public:
 
     BigInt operator / (int number)
     {
-        shift(number / 2);
-        for(auto v : m_number)
+        auto newNumber = m_number;
+        shift(newNumber, number / 2);
+        for(auto v : newNumber)
         {
             std::cout << v << " ";
         } std::cout << std::endl;
 
         if(number % 2 != 0)
         {
-
+//            newNumber -= m_number;
         }
 
         return BigInt();
-
     }
 
     BigInt operator * (int number)
     {
-        shift(number / 2, true);
-        for(auto v : m_number)
+        auto newNumber = m_number;
+        shift(newNumber, number / 2, true);
+        for(auto v : newNumber)
         {
             std::cout << v << " ";
         } std::cout << std::endl;
 
         if(number % 2 != 0)
         {
-
+//            newNumber += m_number;
         }
 
         return BigInt();
@@ -113,4 +132,4 @@ public:
     }
 };
 
-//} // namespace BigInt
+} // namespace BigInt
