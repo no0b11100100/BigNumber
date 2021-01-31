@@ -117,37 +117,74 @@ public:
         } std::cout << std::endl;
     }
 
-    BigInt operator / (int number)
+    std::list<bool> List() const
     {
-        auto newNumber = m_number;
-        shift(newNumber, number / 2);
-        for(auto v : newNumber)
-        {
-            std::cout << v << " ";
-        } std::cout << std::endl;
-
-        return BigInt();
+        return m_number;
     }
 
-    BigInt operator * (int number) // https://ideone.com/IfJVQX
+    BigInt operator / (int number)
+    {
+        return this->operator/(toBinary(number, 1));
+    }
+
+    BigInt operator / (std::list<bool> number) // https://stackoverflow.com/questions/20637339/binary-long-division-algorithm
+    {
+        BigInt result;
+        BigInt Number = *this;
+        while(!m_number.empty())
+        {
+            if(*(number.rbegin()) == 0 && *(m_number.rbegin()) == 0)
+            {
+                shift(number, 1);
+                shift(m_number, 1);
+                result = result + 2;
+            } else
+            {
+                result = result + 1;
+                *this = *this - number;
+            }
+        }
+
+        *this = std::move(Number);
+
+        return result;
+    }
+
+    BigInt operator * (int number)
+    {
+        return this->operator*(toBinary(number, 1));
+    }
+
+    BigInt operator * (std::list<bool> number) // https://ideone.com/IfJVQX
     {
         BigInt result(0);
         auto newNumber = m_number;
-        auto str = toBinary(number, 1);
 
-        for(int i = 0; str.size() != 0; ++i)
+        while(!number.empty())
         {
-            auto bit = std::next(str.begin(), i);
-            if(*(str.rbegin()) == 1) result = result + newNumber;
+            if(*(number.rbegin()) == 1) result = result + newNumber;
             shift(newNumber, 1, true);
-            shift(str, 1);
+            shift(number, 1);
         }
         return result;
     }
 
     BigInt operator - (int number)
     {
-        return BigInt();
+        return this->operator-(toBinary(number, 1));
+    }
+
+    BigInt operator - (std::list<bool> number)
+    {
+        if(m_number.size() < number.size()) return BigInt();
+        std::string num_1 = "";
+        std::string num_2 = "";
+
+        for(const auto& bit : m_number) num_1 += bit + '0';
+        for(const auto& bit : number) num_2 += bit + '0';
+
+        auto res = toBinary( (std::strtol(num_1.c_str(), NULL, 2) - std::strtol(num_2.c_str(), NULL, 2)), 1);
+        return BigInt(res);
     }
 
     BigInt operator + (int number)
@@ -173,9 +210,9 @@ public:
         int t = 0;
         int size = m_number.size();
         std::list<bool> result( size + 1 );
-        auto index = [](std::list<bool>::iterator it, int index) { return (std::next(it, index)); };
+        auto index = [](std::list<bool>::iterator it, int index) { return std::next(it, index); };
 
-        for(int i = size - 1; i > -1; i--)
+        for(int i = size - 1; i >= 0; --i)
         {
             int n = *(index(begin(m_number), i)) + *(index(begin(number), i)) + t;
             t = n / 2;
@@ -184,6 +221,20 @@ public:
 
         *(index(begin(result), 0)) = t;
         return BigInt(result);
+    }
+
+    BigInt operator ~()
+    {
+        auto newNumber = m_number;
+        for(auto& bit : newNumber)
+            bit = bit == 1 ? 0 : 1;
+
+        return BigInt(newNumber);
+    }
+
+    bool isEven() const
+    {
+        return !m_number.empty() && *(std::next(m_number.rbegin(), 1)) == 0;
     }
 };
 
