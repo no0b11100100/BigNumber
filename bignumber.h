@@ -3,8 +3,10 @@
 #include <list>
 #include <vector>
 #include <deque>
+#include <string>
 #include <algorithm>
 #include <map>
+#include <cassert>
 
 namespace BigInt
 {
@@ -71,6 +73,18 @@ class BigInt
         }
     }
 
+    std::list<bool> toBinary(int number, int)
+    {
+        std::list<bool> binary;
+        while(number > 0)
+        {
+            binary.push_front(static_cast<bool>(number % 2));
+            number /= 2;
+        }
+
+        return binary;
+    }
+
     template<typename T>
     void shift(std::list<T>& number, int loops, bool direction = false)
     {
@@ -86,12 +100,20 @@ public:
     BigInt(T){}
 
     BigInt() {}
+
+    BigInt(std::list<bool> number): m_number{std::move(number)}
+    {}
+
     BigInt(int number)
     {
         toBinary(number);
-        for(auto v : m_number)
+    }
+
+    void Print() const
+    {
+        for(const auto& bit : m_number)
         {
-            std::cout << v << " ";
+            std::cout << bit << " ";
         } std::cout << std::endl;
     }
 
@@ -104,28 +126,23 @@ public:
             std::cout << v << " ";
         } std::cout << std::endl;
 
-        if(number % 2 != 0)
-        {
-//            newNumber -= m_number;
-        }
         return BigInt();
     }
 
-    BigInt operator * (int number)
+    BigInt operator * (int number) // https://ideone.com/IfJVQX
     {
+        BigInt result(0);
         auto newNumber = m_number;
-        shift(newNumber, number / 2, true);
-        for(auto v : newNumber)
-        {
-            std::cout << v << " ";
-        } std::cout << std::endl;
+        auto str = toBinary(number, 1);
 
-        if(number % 2 != 0)
+        for(int i = 0; str.size() != 0; ++i)
         {
-//            newNumber += m_number;
+            auto bit = std::next(str.begin(), i);
+            if(*(str.rbegin()) == 1) result = result + newNumber;
+            shift(newNumber, 1, true);
+            shift(str, 1);
         }
-
-        return BigInt();
+        return result;
     }
 
     BigInt operator - (int number)
@@ -135,7 +152,38 @@ public:
 
     BigInt operator + (int number)
     {
-        return BigInt();
+        return this->operator+(toBinary(number, 1));
+    }
+
+    BigInt operator + (std::list<bool> number)
+    {
+        if(m_number.size() < number.size())
+        {
+            int diff = number.size() - m_number.size();
+            for(int i = 0; i < diff; ++i) m_number.push_front(0);
+        }
+        else
+        {
+            int diff = m_number.size() - number.size();
+            for(int i = 0; i < diff; ++i) number.push_front(0);
+        }
+
+        assert(m_number.size() == number.size());
+
+        int t = 0;
+        int size = m_number.size();
+        std::list<bool> result( size + 1 );
+        auto index = [](std::list<bool>::iterator it, int index) { return (std::next(it, index)); };
+
+        for(int i = size - 1; i > -1; i--)
+        {
+            int n = *(index(begin(m_number), i)) + *(index(begin(number), i)) + t;
+            t = n / 2;
+            *(index(begin(result), i+1)) = n % 2;
+        }
+
+        *(index(begin(result), 0)) = t;
+        return BigInt(result);
     }
 };
 

@@ -5,9 +5,10 @@ using namespace std;
 
 int main()
 {
-    BigInt::BigInt a(8);
+    BigInt::BigInt a(26);
+    BigInt::BigInt add = a + 12;
+    add.Print();
 
-    a  / 4;
-
-    a * 2;
+    BigInt::BigInt mult = a * 12;
+    mult.Print();
 }
