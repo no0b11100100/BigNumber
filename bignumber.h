@@ -48,8 +48,8 @@ template<class T>
 using is_integer_t = typename std::enable_if_t< std::is_same_v< is_integer<T>(), true > >;
 
 template <class Container>
-using is_container_t = typename std::enable_if_t< std::is_same_v< is_allow_container<Container>(), true > &&
-                                                  std::is_same_v< is_integer_t<typename Container::value_type>(), true > >;
+using is_container_t = typename std::enable_if_t< std::is_same_v<Container, std::string> || (std::is_same_v< is_allow_container<Container>(), true > &&
+                                                  std::is_same_v< is_integer_t<typename Container::value_type>(), true >) >;
 
 } // namespace
 
@@ -69,7 +69,7 @@ class BigInt
         while(number > 0)
         {
             m_number.push_front(static_cast<bool>(number % 2));
-            number /= 2;
+            number >>= 1;
         }
     }
 
@@ -79,7 +79,7 @@ class BigInt
         while(number > 0)
         {
             binary.push_front(static_cast<bool>(number % 2));
-            number /= 2;
+            number >>= 1;
         }
 
         return binary;
@@ -88,8 +88,22 @@ class BigInt
     template<typename T>
     void shift(std::list<T>& number, int loops, bool direction = false)
     {
+        if (number.size() < loops) { number.clear(); number.push_back(0); return; }
         if(!direction) for(int i = 0; i < loops; ++i) number.pop_back();
         else for(int i = 0; i < loops; ++i) number.push_back(0);
+    }
+
+    void removeZeros(std::list<bool>& number)
+    {
+        for(auto it = begin(number); it != end(number);)
+        {
+            if(*it == 0) it = number.erase(it);
+            else
+            {
+                ++it;
+                break;
+            }
+        }
     }
 
 public:
@@ -192,6 +206,11 @@ public:
         return this->operator+(toBinary(number, 1));
     }
 
+    BigInt operator + (BigInt number)
+    {
+        return this->operator+(number.List());
+    }
+
     BigInt operator + (std::list<bool> number)
     {
         if(m_number.size() < number.size())
@@ -215,7 +234,7 @@ public:
         for(int i = size - 1; i >= 0; --i)
         {
             int n = *(index(begin(m_number), i)) + *(index(begin(number), i)) + t;
-            t = n / 2;
+            t = n << 1;
             *(index(begin(result), i+1)) = n % 2;
         }
 
@@ -230,6 +249,69 @@ public:
             bit = bit == 1 ? 0 : 1;
 
         return BigInt(newNumber);
+    }
+
+    BigInt operator |(BigInt other)
+    {
+        auto number = other.List();
+        if(m_number.size() < number.size())
+        {
+            int diff = other.List().size() - m_number.size();
+            for(int i = 0; i < diff; ++i) m_number.push_front(0);
+        }
+        else
+        {
+            int diff = m_number.size() - number.size();
+            for(int i = 0; i < diff; ++i) number.push_front(0);
+        }
+
+        std::list<bool> newNumber(m_number.size());
+
+        for(auto it = m_number.begin(), it_1 = number.begin(); it != m_number.end(); ++it, ++it_1)
+        {
+            if(*it == *it_1) newNumber.push_back(*it);
+            else newNumber.push_back(1);
+        }
+
+        removeZeros(newNumber);
+
+        return BigInt(newNumber);
+    }
+
+    BigInt operator |=(BigInt other)
+    {
+        *this = operator|(other);
+        return *this;
+    }
+
+    BigInt operator << (int shifts)
+    {
+        auto newNumber = m_number;
+        shift(newNumber, shifts);
+        return BigInt(newNumber);
+    }
+
+    bool operator > (BigInt other)
+    {
+        if(m_number.size() > other.List().size()) return true;
+        if(m_number.size() < other.List().size()) return false;
+
+        assert(m_number.size() == other.List().size());
+
+        auto value = other.List();
+
+        for(auto it = m_number.begin(), it_1 = value.begin(); it != m_number.end(); ++it, ++it_1)
+        {
+            if(*it != *it_1) return false;
+        }
+
+        return true;
+    }
+
+    BigInt& operator += (BigInt other)
+    {
+        *this = operator+(other);
+        return *this;
     }
 
     bool isEven() const
