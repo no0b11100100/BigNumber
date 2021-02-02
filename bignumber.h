@@ -86,11 +86,22 @@ class BigInt
     }
 
     template<typename T>
-    void shift(std::list<T>& number, int loops, bool direction = false)
+    void shift(std::list<T>& number, std::size_t loops, bool direction = false)
     {
-        if (number.size() < loops) { number.clear(); number.push_back(0); return; }
-        if(!direction) for(int i = 0; i < loops; ++i) number.pop_back();
-        else for(int i = 0; i < loops; ++i) number.push_back(0);
+        if(!direction)
+        {
+            if (number.size() < loops)
+            {
+                number.clear();
+                number.push_back(0);
+                return;
+            }
+            for(std::size_t i = 0; i < loops; ++i)
+            {
+                number.pop_back();
+            }
+        }
+        else for(std::size_t i = 0; i < loops; ++i) number.push_back(0);
     }
 
     void removeZeros(std::list<bool>& number)
@@ -287,8 +298,27 @@ public:
     BigInt operator << (int shifts)
     {
         auto newNumber = m_number;
+        shift(newNumber, shifts, true);
+        return BigInt(newNumber);
+    }
+
+    BigInt& operator <<= (int shifts)
+    {
+        *this = operator <<(shifts);
+        return *this;
+    }
+
+    BigInt operator >> (int shifts)
+    {
+        auto newNumber = m_number;
         shift(newNumber, shifts);
         return BigInt(newNumber);
+    }
+
+    BigInt& operator >>= (int shifts)
+    {
+        *this = operator >>(shifts);
+        return *this;
     }
 
     bool operator > (BigInt other)

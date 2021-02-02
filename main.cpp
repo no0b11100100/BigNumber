@@ -97,16 +97,10 @@ using namespace chrono;
 // https://www.geeksforgeeks.org/divide-two-integers-without-using-multiplication-division-mod-operator/
 BigInt::BigInt divide_logn(BigInt::BigInt dividend, BigInt::BigInt divisor) {
     BigInt::BigInt quotient, temp;
-//    int size = std::max(dividend.List().size(), divisor.List().size());
-    std::list<bool> MaxValueList;
-
-    for (int i = 0; i  < 30; ++i) MaxValueList.push_front(0);
-    MaxValueList.push_front(1);
-    assert(MaxValueList.size() == 31);
-    BigInt::BigInt MaxValue(MaxValueList);
-
-    for (int i = 31; i >= 0; --i) {
-        if (dividend > temp + (divisor << i))
+    BigInt::BigInt MaxValue(1);
+    int size = std::max(dividend.List().size(), divisor.List().size());
+    for (int i = size; i >= 0; --i) {
+        if (temp + (divisor << i) > dividend)
         {
             temp += (divisor << i);
             quotient |= (MaxValue << i);
@@ -117,7 +111,7 @@ BigInt::BigInt divide_logn(BigInt::BigInt dividend, BigInt::BigInt divisor) {
 }
 
 int main() {
-    BigInt::BigInt a(10);
+    BigInt::BigInt a(100);
     BigInt::BigInt b(3);
 
     auto start = high_resolution_clock::now();
