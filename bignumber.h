@@ -134,6 +134,16 @@ public:
         toBinary(number);
     }
 
+    std::size_t Decimal() const
+    {
+        std::size_t result = 0;
+        int degree = 0;
+        for(auto bit = m_number.rbegin(); bit != m_number.rend(); ++bit)
+            result += static_cast<int>(*bit) << degree++;
+
+        return result;
+    }
+
     void Print() const
     {
         for(const auto& bit : m_number)
@@ -289,11 +299,83 @@ public:
         return BigInt(newNumber);
     }
 
+    BigInt operator &(BigInt other)
+    {
+        auto number = other.List();
+        if(m_number.size() < number.size())
+        {
+            int diff = other.List().size() - m_number.size();
+            for(int i = 0; i < diff; ++i) m_number.push_front(0);
+        }
+        else
+        {
+            int diff = m_number.size() - number.size();
+            for(int i = 0; i < diff; ++i) number.push_front(0);
+        }
+
+        std::list<bool> newNumber(m_number.size());
+
+        for(auto it = m_number.begin(), it_1 = number.begin(); it != m_number.end(); ++it, ++it_1)
+        {
+            if(*it == *it_1) newNumber.push_back(*it);
+            else newNumber.push_back(0);
+        }
+
+        removeZeros(newNumber);
+
+        return BigInt(newNumber);
+    }
+
     BigInt operator |=(BigInt other)
     {
         *this = operator|(other);
         return *this;
     }
+
+    BigInt operator &=(BigInt other)
+    {
+        *this = operator&(other);
+        return *this;
+    }
+
+    BigInt operator ^(BigInt other)
+    {
+        auto number = other.List();
+        if(m_number.size() < number.size())
+        {
+            int diff = other.List().size() - m_number.size();
+            for(int i = 0; i < diff; ++i) m_number.push_front(0);
+        }
+        else
+        {
+            int diff = m_number.size() - number.size();
+            for(int i = 0; i < diff; ++i) number.push_front(0);
+        }
+
+        std::list<bool> newNumber(m_number.size());
+
+        for(auto it = m_number.begin(), it_1 = number.begin(); it != m_number.end(); ++it, ++it_1)
+        {
+            if(*it == *it_1) newNumber.push_back(0);
+            else newNumber.push_back(1);
+        }
+
+        removeZeros(newNumber);
+
+        return BigInt(newNumber);
+    }
+
+    BigInt operator ^=(BigInt other)
+    {
+        *this = operator^(other);
+        return *this;
+    }
+
+     BigInt operator !()
+     {
+         if(m_number.size() == 1 && *(m_number.begin() ) == 0) return BigInt(1);
+         return BigInt(1);
+     }
 
     BigInt operator << (int shifts)
     {
@@ -347,6 +429,11 @@ public:
     bool isEven() const
     {
         return !m_number.empty() && *(std::next(m_number.rbegin(), 1)) == 0;
+    }
+
+    bool isOdd() const
+    {
+        return !isEven();
     }
 };
 
