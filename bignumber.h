@@ -222,6 +222,17 @@ public:
         return BigInt(res);
     }
 
+    BigInt operator - (BigInt number)
+    {
+        return this->operator-(number.List());
+    }
+
+    BigInt& operator -=(BigInt number)
+    {
+        *this = operator-(number.List());
+        return *this;
+    }
+
     BigInt operator + (int number)
     {
         return this->operator+(toBinary(number, 1));
@@ -234,33 +245,41 @@ public:
 
     BigInt operator + (std::list<bool> number)
     {
-        if(m_number.size() < number.size())
-        {
-            int diff = number.size() - m_number.size();
-            for(int i = 0; i < diff; ++i) m_number.push_front(0);
-        }
-        else
-        {
-            int diff = m_number.size() - number.size();
-            for(int i = 0; i < diff; ++i) number.push_front(0);
-        }
+//        if(m_number.size() < number.size())
+//        {
+//            int diff = number.size() - m_number.size();
+//            for(int i = 0; i < diff; ++i) m_number.push_front(0);
+//        }
+//        else
+//        {
+//            int diff = m_number.size() - number.size();
+//            for(int i = 0; i < diff; ++i) number.push_front(0);
+//        }
 
-        assert(m_number.size() == number.size());
+//        assert(m_number.size() == number.size());
 
-        int t = 0;
-        int size = m_number.size();
-        std::list<bool> result( size + 1 );
-        auto index = [](std::list<bool>::iterator it, int index) { return std::next(it, index); };
+//        int t = 0;
+//        int size = m_number.size();
+//        std::list<bool> result( size + 1 );
+//        auto index = [](std::list<bool>::iterator it, int index) { return std::next(it, index); };
 
-        for(int i = size - 1; i >= 0; --i)
-        {
-            int n = *(index(begin(m_number), i)) + *(index(begin(number), i)) + t;
-            t = n << 1;
-            *(index(begin(result), i+1)) = n % 2;
-        }
+//        for(int i = size - 1; i >= 0; --i)
+//        {
+//            int n = *(index(begin(m_number), i)) + *(index(begin(number), i)) + t;
+//            t = n << 1;
+//            *(index(begin(result), i+1)) = n % 2;
+//        }
 
-        *(index(begin(result), 0)) = t;
-        return BigInt(result);
+//        *(index(begin(result), 0)) = t;
+//        return BigInt(result);
+
+        std::string num_1 = "";
+        std::string num_2 = "";
+
+        for(const auto& bit : m_number) num_1 += bit + '0';
+        for(const auto& bit : number) num_2 += bit + '0';
+
+        return BigInt(std::strtol(num_1.c_str(), NULL, 2) + std::strtol(num_2.c_str(), NULL, 2));
     }
 
     BigInt operator ~()
@@ -412,12 +431,37 @@ public:
 
         auto value = other.List();
 
-        for(auto it = m_number.begin(), it_1 = value.begin(); it != m_number.end(); ++it, ++it_1)
-        {
-            if(*it != *it_1) return false;
-        }
+//        for(auto it = m_number.begin(), it_1 = value.begin(); it != m_number.end(); ++it, ++it_1)
+//        {
+//            if(*it < *it_1) return false;
+//        }
 
-        return true;
+        std::string num_1 = "";
+        std::string num_2 = "";
+
+        for(const auto& bit : m_number) num_1 += bit + '0';
+        for(const auto& bit : value) num_2 += bit + '0';
+
+        return (std::strtol(num_1.c_str(), NULL, 2) > std::strtol(num_2.c_str(), NULL, 2));
+
+//        return true;
+    }
+
+    bool operator >= (BigInt other)
+    {
+        if(m_number.size() > other.List().size()) return true;
+        if(m_number.size() < other.List().size()) return false;
+
+        assert(m_number.size() == other.List().size());
+
+        auto value = other.List();
+        std::string num_1 = "";
+        std::string num_2 = "";
+
+        for(const auto& bit : m_number) num_1 += bit + '0';
+        for(const auto& bit : value) num_2 += bit + '0';
+
+        return (std::strtol(num_1.c_str(), NULL, 2) >= std::strtol(num_2.c_str(), NULL, 2));
     }
 
     BigInt& operator += (BigInt other)
@@ -434,6 +478,16 @@ public:
     bool isOdd() const
     {
         return !isEven();
+    }
+
+    void PushBack(bool bit)
+    {
+        m_number.push_back(bit);
+    }
+
+    void PushFront(bool bit)
+    {
+        m_number.push_front(bit);
     }
 };
 
