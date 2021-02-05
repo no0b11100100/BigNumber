@@ -123,6 +123,19 @@ class BigInt
         return std::count(begin(m_number), end(m_number), 1);
     }
 
+    std::size_t toLow2Pow(std::size_t number)
+    {
+        --number;
+        number |= number >> 1;
+        number |= number >> 2;
+        number |= number >> 4;
+        number |= number >> 8;
+        number |= number >> 16;
+//        number |= number >> 32;
+        number >>= 1;
+        return ++number;
+    }
+
 public:
     template< typename T, is_integer_t<T> >
     BigInt(T){}
@@ -159,6 +172,29 @@ public:
         {
             std::cout << bit << " ";
         } std::cout << std::endl;
+    }
+
+    BigInt toLow2Pow()
+    {
+        std::list<bool> result;
+        result.push_back(1);
+        for(std::size_t i = 1; i < m_number.size(); ++i) result.push_back(0);
+
+        return BigInt(result);
+    }
+
+    bool is2Pow() const
+    {
+        if(m_number.size() == 1 && *(m_number.begin()) == 1) return true;
+        std::list<bool> result = m_number;
+        result.pop_front();
+        for(auto bit : result) if (bit != 0) return false;
+        return true;
+    }
+
+    std::size_t SetedBits() const
+    {
+        return setedBits;
     }
 
     std::list<bool> List() const
@@ -233,6 +269,11 @@ public:
             shift(number, 1);
         }
         return result;
+    }
+
+    BigInt operator * (BigInt number)
+    {
+        return operator*(number.List());
     }
 
     BigInt operator - (int number)
