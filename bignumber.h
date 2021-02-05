@@ -185,6 +185,28 @@ public:
         return result;
     }
 
+    BigInt operator / (BigInt divisor)
+    {
+        BigInt result(0);
+        BigInt dividend = *this;
+        while(dividend >= divisor)
+        {
+            int diff = (dividend.List().size() - divisor.List().size());
+            auto temp = divisor << diff;
+
+            if(temp > dividend)
+            {
+                temp >>= 1;
+                --diff;
+            }
+
+            dividend -= temp;
+            result += BigInt(1)<<diff;
+        }
+
+        return result;
+    }
+
     BigInt operator * (int number)
     {
         return this->operator*(toBinary(number, 1));
@@ -280,6 +302,12 @@ public:
         for(const auto& bit : number) num_2 += bit + '0';
 
         return BigInt(std::strtol(num_1.c_str(), NULL, 2) + std::strtol(num_2.c_str(), NULL, 2));
+    }
+
+    BigInt& operator += (BigInt other)
+    {
+        *this = operator+(other);
+        return *this;
     }
 
     BigInt operator ~()
@@ -431,43 +459,60 @@ public:
 
         auto value = other.List();
 
-//        for(auto it = m_number.begin(), it_1 = value.begin(); it != m_number.end(); ++it, ++it_1)
-//        {
-//            if(*it < *it_1) return false;
-//        }
+        for(auto it = m_number.begin(), it_1 = value.begin(); it != m_number.end(); ++it, ++it_1)
+        {
+            if(*it != *it_1) return *it < *it_1 ? false : true;
+        }
 
-        std::string num_1 = "";
-        std::string num_2 = "";
-
-        for(const auto& bit : m_number) num_1 += bit + '0';
-        for(const auto& bit : value) num_2 += bit + '0';
-
-        return (std::strtol(num_1.c_str(), NULL, 2) > std::strtol(num_2.c_str(), NULL, 2));
-
-//        return true;
+        return false;
     }
 
-    bool operator >= (BigInt other)
+    bool operator < (BigInt other)
     {
-        if(m_number.size() > other.List().size()) return true;
-        if(m_number.size() < other.List().size()) return false;
+        if(m_number.size() < other.List().size()) return true;
+        if(m_number.size() > other.List().size()) return false;
 
         assert(m_number.size() == other.List().size());
 
         auto value = other.List();
-        std::string num_1 = "";
-        std::string num_2 = "";
 
-        for(const auto& bit : m_number) num_1 += bit + '0';
-        for(const auto& bit : value) num_2 += bit + '0';
+        for(auto it = m_number.begin(), it_1 = value.begin(); it != m_number.end(); ++it, ++it_1)
+        {
+            if(*it != *it_1) return *it > *it_1 ? false : true;
+        }
 
-        return (std::strtol(num_1.c_str(), NULL, 2) >= std::strtol(num_2.c_str(), NULL, 2));
+        return false;
     }
 
-    BigInt& operator += (BigInt other)
+    bool operator >= (BigInt other)
     {
-        *this = operator+(other);
-        return *this;
+        return !(operator<(other));
+    }
+
+    bool operator <= (BigInt other)
+    {
+        return !(operator>(other));
+    }
+
+    bool operator == (BigInt other)
+    {
+        if(m_number.size() != other.List().size()) return false;
+
+        assert(m_number.size() == other.List().size());
+
+        auto value = other.List();
+
+        for(auto it = m_number.begin(), it_1 = value.begin(); it != m_number.end(); ++it, ++it_1)
+        {
+            if(*it != *it_1) return false;
+        }
+
+        return true;
+    }
+
+    bool operator != (BigInt other)
+    {
+        return !(operator==(other));
     }
 
     bool isEven() const
