@@ -64,6 +64,7 @@ enum class BASE
 class BigInt
 {
     std::list<bool> m_number;
+    std::size_t setedBits;
     void toBinary(int number)
     {
         while(number > 0)
@@ -117,6 +118,11 @@ class BigInt
         }
     }
 
+    std::size_t countSetedBits() const
+    {
+        return std::count(begin(m_number), end(m_number), 1);
+    }
+
 public:
     template< typename T, is_integer_t<T> >
     BigInt(T){}
@@ -126,12 +132,15 @@ public:
 
     BigInt() {}
 
-    BigInt(std::list<bool> number): m_number{std::move(number)}
+    BigInt(std::list<bool> number):
+        m_number{std::move(number)},
+        setedBits{countSetedBits()}
     {}
 
     BigInt(int number)
     {
         toBinary(number);
+        setedBits = countSetedBits();
     }
 
     std::size_t Decimal() const
