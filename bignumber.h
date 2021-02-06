@@ -174,21 +174,39 @@ public:
         } std::cout << std::endl;
     }
 
-    BigInt toLow2Pow()
+    std::size_t toLow2Pow() const
     {
-        std::list<bool> result;
-        result.push_back(1);
-        for(std::size_t i = 1; i < m_number.size(); ++i) result.push_back(0);
+        return m_number.size();
+    }
 
-        return BigInt(result);
+    void DecrementFromIndex(std::size_t s)
+    {
+        for(auto it = std::next(m_number.rbegin(), s); it != m_number.rend(); ++it)
+        {
+            *it = 0;
+            if(*it == 1) break;
+        }
+
+        removeZeros(m_number);
+    }
+
+    void IncrementFromIndex(std::size_t s)
+    {
+        for(auto it = std::next(m_number.rbegin(), s); it != m_number.rend(); ++it)
+        {
+            *it = 1;
+            if(*it == 0) break;
+        }
     }
 
     bool is2Pow() const
     {
-        if(m_number.size() == 1 && *(m_number.begin()) == 1) return true;
-        std::list<bool> result = m_number;
-        result.pop_front();
-        for(auto bit : result) if (bit != 0) return false;
+        auto head_start = std::next(begin(m_number),1);
+        auto end_start = rbegin(m_number);
+        for(; head_start != end_start.base(); ++head_start, ++end_start)
+        {
+            if(*head_start != 0 || *end_start != 0) return false;
+        }
         return true;
     }
 
@@ -200,6 +218,26 @@ public:
     std::list<bool> List() const
     {
         return m_number;
+    }
+
+    bool isEven() const
+    {
+        return !m_number.empty() && *(std::next(m_number.rbegin(), 1)) == 0;
+    }
+
+    bool isOdd() const
+    {
+        return !isEven();
+    }
+
+    void PushBack(bool bit)
+    {
+        m_number.push_back(bit);
+    }
+
+    void PushFront(bool bit)
+    {
+        m_number.push_front(bit);
     }
 
     BigInt operator / (int number)
@@ -261,7 +299,6 @@ public:
     {
         BigInt result(0);
         auto newNumber = m_number;
-
         while(!number.empty())
         {
             if(*(number.rbegin()) == 1) result = result + newNumber;
@@ -273,7 +310,33 @@ public:
 
     BigInt operator * (BigInt number)
     {
-        return operator*(number.List());
+        BigInt result;
+        while(true)
+        {
+            if(number.is2Pow())
+            {
+                bool isOne = number.List().size() == 1 && *(number.List().begin()) == 1;
+
+                if(isOne)
+                {
+                    return result + *this;
+                }
+
+                auto temp = std::move(m_number);
+                shift(temp, number.List().size()-1, true);
+
+                return result + temp;
+
+//                return result + (isOne ?  *this : (*this << number.List().size()-1));
+            }
+            else
+            {
+                std::size_t temp = number.toLow2Pow();
+                result += (*this << temp-1);
+                number.DecrementFromIndex(temp-1);
+            }
+        }
+        return result;
     }
 
     BigInt operator - (int number)
@@ -468,7 +531,7 @@ public:
         return *this;
     }
 
-     BigInt operator !()
+    BigInt operator !()
      {
          if(m_number.size() == 1 && *(m_number.begin() ) == 0) return BigInt(1);
          return BigInt(1);
@@ -483,7 +546,7 @@ public:
 
     BigInt& operator <<= (int shifts)
     {
-        *this = operator <<(shifts);
+        shift(m_number, shifts, true);
         return *this;
     }
 
@@ -496,8 +559,48 @@ public:
 
     BigInt& operator >>= (int shifts)
     {
-        *this = operator >>(shifts);
+        shift(m_number, shifts);
         return *this;
+    }
+
+    BigInt& operator --()
+    {
+        for(auto it = m_number.rbegin(); it != m_number.rend(); ++it)
+        {
+            *it = 0;
+            if(*it == 1) break;
+        }
+
+        removeZeros(m_number);
+
+        return *this;
+    }
+
+    BigInt operator --(int)
+    {
+        auto number = *this;
+        --(*this);
+        return number;
+    }
+
+    BigInt& operator ++()
+    {
+        for(auto it = m_number.rbegin(); it != m_number.rend(); ++it)
+        {
+            *it = 1;
+            if(*it == 0) break;
+        }
+
+        if(*(m_number.begin()) == 0) m_number.push_front(1);
+
+        return *this;
+    }
+
+    BigInt operator ++(int)
+    {
+        auto number = *this;
+        ++(*this);
+        return number;
     }
 
     bool operator > (BigInt other)
@@ -565,25 +668,6 @@ public:
         return !(operator==(other));
     }
 
-    bool isEven() const
-    {
-        return !m_number.empty() && *(std::next(m_number.rbegin(), 1)) == 0;
-    }
-
-    bool isOdd() const
-    {
-        return !isEven();
-    }
-
-    void PushBack(bool bit)
-    {
-        m_number.push_back(bit);
-    }
-
-    void PushFront(bool bit)
-    {
-        m_number.push_front(bit);
-    }
 };
 
 } // namespace BigInt
