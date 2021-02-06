@@ -386,24 +386,26 @@ public:
                         }
                     }
                     else newNumber.push_front(*self_it);
-            }
+                }
 
-            if(*self_it == *number_it)
-            {
-                newNumber.push_front(*self_it);
-            } else
-            {
-                if(*self_it > *number_it) newNumber.push_front(*self_it);
-                else
+                if(*self_it == *number_it)
                 {
-                    isTransfer = true;
-                    newNumber.push_front(1);
+                    newNumber.push_front(*self_it);
+                } else
+                {
+                    if(*self_it > *number_it) newNumber.push_front(*self_it);
+                    else
+                    {
+                        isTransfer = true;
+                        newNumber.push_front(1);
+                    }
                 }
             }
         }
-        }
 
         removeZeros(m_number);
+
+        assert(*(newNumber.begin()) == 1);
 
         return BigInt(newNumber);
     }

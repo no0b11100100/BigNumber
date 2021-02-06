@@ -1,6 +1,6 @@
 #include <iostream>
 #include <chrono>
-#include "bignumber.h"
+#include "bignumber.hpp"
 
 using namespace std;
 using namespace chrono;
