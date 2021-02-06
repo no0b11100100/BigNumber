@@ -378,43 +378,76 @@ public:
         return this->operator+(number.List());
     }
 
-    BigInt operator + (std::list<bool> number)
+    BigInt operator + (std::list<bool> number) // test and fix
     {
-//        if(m_number.size() < number.size())
-//        {
-//            int diff = number.size() - m_number.size();
-//            for(int i = 0; i < diff; ++i) m_number.push_front(0);
-//        }
-//        else
-//        {
-//            int diff = m_number.size() - number.size();
-//            for(int i = 0; i < diff; ++i) number.push_front(0);
-//        }
+        auto self_it = rbegin(m_number);
+        auto number_it = rbegin(number);
+        std::list<bool> newNumber;
+        std::size_t size = std::max(m_number.size(), number.size());
+        bool isTransfer = false;
 
-//        assert(m_number.size() == number.size());
+        for(std::size_t i = 0; i < size; ++self_it, ++number_it, ++i)
+        {
+            if(self_it == rend(m_number))
+            {
+                for(; number_it != rend(number); ++number_it)
+                {
+                    if(isTransfer)
+                    {
+                        if(*number_it == 1)  newNumber.push_front(0);
+                        else
+                        {
+                            isTransfer = false;
+                            newNumber.push_front(1);
+                        }
+                    }
+                    else newNumber.push_front(*number_it);
+                }
+                break;
+            } else if(number_it == rend(number))
+            {
+                for(; self_it != rend(m_number); ++self_it)
+                {
+                    if(isTransfer)
+                    {
+                        if(*self_it == 1)  newNumber.push_front(0);
+                        else
+                        {
+                            isTransfer = false;
+                            newNumber.push_front(1);
+                        }
+                    }
+                    else newNumber.push_front(*self_it);
+                }
+                break;
+            }
 
-//        int t = 0;
-//        int size = m_number.size();
-//        std::list<bool> result( size + 1 );
-//        auto index = [](std::list<bool>::iterator it, int index) { return std::next(it, index); };
+            if(*self_it == 1 && *number_it == 1)
+            {
+                isTransfer = true;
+                newNumber.push_front(0);
+            } else if(*self_it == 0 && *number_it == 0)
+            {
+                isTransfer ? newNumber.push_front(1) : newNumber.push_front(0);
+                isTransfer = false;
+            } else if(*self_it != *number_it)
+            {
+                if(!isTransfer) newNumber.push_front(1);
+                else
+                {
+                    newNumber.push_front(1);
+                    isTransfer = true;
+                }
+            }
+        }
 
-//        for(int i = size - 1; i >= 0; --i)
-//        {
-//            int n = *(index(begin(m_number), i)) + *(index(begin(number), i)) + t;
-//            t = n << 1;
-//            *(index(begin(result), i+1)) = n % 2;
-//        }
+        if(isTransfer) newNumber.push_front(1);
 
-//        *(index(begin(result), 0)) = t;
-//        return BigInt(result);
+//        for(auto v : newNumber) std::cout << v << std::endl;
 
-        std::string num_1 = "";
-        std::string num_2 = "";
+        assert(*(newNumber.begin()) == 1);
 
-        for(const auto& bit : m_number) num_1 += bit + '0';
-        for(const auto& bit : number) num_2 += bit + '0';
-
-        return BigInt(std::strtol(num_1.c_str(), NULL, 2) + std::strtol(num_2.c_str(), NULL, 2));
+        return BigInt(newNumber);
     }
 
     BigInt& operator += (BigInt other)

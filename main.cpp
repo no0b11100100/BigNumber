@@ -6,22 +6,23 @@ using namespace std;
 using namespace chrono;
 
 int main() {
-    BigInt::BigInt a(435);
-    BigInt::BigInt b(34);
+    BigInt::BigInt a(543);
+    BigInt::BigInt b(564);
 
     auto start = high_resolution_clock::now();
-    auto res = a*b.List();
+//    auto res = a*b.List();
+    auto res = a+b;
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<microseconds>(stop - start);
     cout << "\nmult " << duration.count() << endl << endl;
     cout << res.Decimal() << endl;
 
-    start = high_resolution_clock::now();
-    res = a*b;
-    stop = high_resolution_clock::now();
-    duration = duration_cast<microseconds>(stop - start);
-    cout << "\ntaby " << duration.count() << endl << endl;
-    cout << res.Decimal() << endl;
+//    start = high_resolution_clock::now();
+//    res = a*b;
+//    stop = high_resolution_clock::now();
+//    duration = duration_cast<microseconds>(stop - start);
+//    cout << "\ntaby " << duration.count() << endl << endl;
+//    cout << res.Decimal() << endl;
 
     return 0;
 }
