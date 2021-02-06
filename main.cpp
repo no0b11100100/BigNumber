@@ -6,12 +6,12 @@ using namespace std;
 using namespace chrono;
 
 int main() {
-    BigInt::BigInt a(543);
-    BigInt::BigInt b(564);
+    BigInt::BigInt a(12);
+    BigInt::BigInt b(4);
 
     auto start = high_resolution_clock::now();
 //    auto res = a*b.List();
-    auto res = a+b;
+    auto res = a-b;
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<microseconds>(stop - start);
     cout << "\nmult " << duration.count() << endl << endl;
