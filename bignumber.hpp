@@ -216,6 +216,8 @@ public:
         return true;
     }
 
+    // http://oldskola1.narod.ru/Kiselev07/K07.htm
+    // https://www.geeksforgeeks.org/long-division-method-to-find-square-root-with-examples/
     bool isPerfectSquare() const
     {
         if(this->is2Pow() && (this->toLow2Pow() & 0x1) == 0)
@@ -226,6 +228,24 @@ public:
         {
             // TODO
         }
+        return false;
+    }
+
+    // https://ideone.com/G9T0Lr
+    bool isPrime() const
+    {
+        bool notPrime = m_number.size() == 1 && (*(m_number.begin()) == 0 || *(m_number.begin()) == 1); // 0,1
+        bool prime = m_number.size() == 2 &&
+                ( (*(m_number.begin()) == 1 && *(std::next(m_number.begin(), 1)) == 0) // 2
+                 || ((*(m_number.begin()) == 1 && *(std::next(m_number.begin(), 1)) == 1)) ); // 3
+        if(notPrime) return false;
+        if(prime) return true;
+
+        if ((Pow(*this, 2)) % 24 == 1)
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -307,6 +327,12 @@ public:
         }
 
         return result;
+    }
+
+
+    BigInt operator % (int)
+    {
+        return BigInt();
     }
 
     BigInt operator * (int number)
