@@ -65,6 +65,7 @@ enum class BASE
 class BigInt
 {
     std::list<bool> m_number;
+    bool sign;
     std::size_t setedBits;
     void toBinary(int number)
     {
@@ -232,6 +233,7 @@ public:
     }
 
     // https://ideone.com/G9T0Lr
+    // https://ru.stackoverflow.com/questions/54193/%D0%AF%D0%B2%D0%BB%D1%8F%D0%B5%D1%82%D1%81%D1%8F-%D0%BB%D0%B8-%D1%87%D0%B8%D1%81%D0%BB%D0%BE-%D0%BF%D1%80%D0%BE%D1%81%D1%82%D1%8B%D0%BC
     bool isPrime() const
     {
         bool notPrime = m_number.size() == 1 && (*(m_number.begin()) == 0 || *(m_number.begin()) == 1); // 0,1
@@ -261,7 +263,7 @@ public:
 
     bool isEven() const
     {
-        return !m_number.empty() && *(std::next(m_number.rbegin(), 1)) == 0;
+        return !m_number.empty() && *(m_number.rbegin()) == 0;
     }
 
     bool isOdd() const
@@ -269,14 +271,34 @@ public:
         return !isEven();
     }
 
-    void PushBack(bool bit)
+    void Abs()
     {
-        m_number.push_back(bit);
+        if(sign == false) sign = true;
     }
 
-    void PushFront(bool bit)
+    bool isPositive() const
     {
-        m_number.push_front(bit);
+        return sign == true ? true : false;
+    }
+
+    bool isNegative() const
+    {
+        return !isPositive();
+    }
+
+    void ChangeSign()
+    {
+        sign = !sign;
+    }
+
+    // https://prog-cpp.ru/simple-multy/
+    // https://brestprog.by/topics/factorization/
+    // https://ideone.com/OMcMN6 - C++ impl
+    // https://ideone.com/oSZsIG - C impl
+    // https://ideone.com/X2govK - C++ impl
+    std::vector<std::size_t> Factorize() const
+    {
+        return {};
     }
 
     BigInt operator / (int number)
@@ -340,7 +362,8 @@ public:
         return this->operator*(toBinary(number, 1));
     }
 
-    BigInt operator * (std::list<bool> number) // https://ideone.com/IfJVQX
+    // https://ideone.com/IfJVQX
+    BigInt operator * (std::list<bool> number)
     {
         BigInt result(0);
         auto newNumber = m_number;
@@ -565,11 +588,12 @@ public:
 
     BigInt operator ~()
     {
+        sign = !sign;
         auto newNumber = m_number;
         for(auto& bit : newNumber)
             bit = bit == 1 ? 0 : 1;
 
-        return BigInt(newNumber);
+        return (++BigInt(newNumber));
     }
 
     BigInt operator |(BigInt other)
@@ -877,7 +901,6 @@ public:
     {
         return (a*b) / gcd(a,b);
     }
-
 };
 
 } // namespace BigInt
