@@ -61,6 +61,7 @@ enum class BASE
     HEXADECIMAL
 };
 
+
 class BigInt
 {
     std::list<bool> m_number;
@@ -123,7 +124,7 @@ class BigInt
         return std::count(begin(m_number), end(m_number), 1);
     }
 
-    std::size_t toLow2Pow(std::size_t number)
+    static std::size_t toLow2Pow(std::size_t number)
     {
         --number;
         number |= number >> 1;
@@ -131,9 +132,14 @@ class BigInt
         number |= number >> 4;
         number |= number >> 8;
         number |= number >> 16;
-//        number |= number >> 32;
+        number |= number >> 32;
         number >>= 1;
         return ++number;
+    }
+
+    static bool is2Pow(std::size_t number)
+    {
+        return toLow2Pow(number) == number;
     }
 
 public:
@@ -208,6 +214,19 @@ public:
             if(*head_start != 0 || *end_start != 0) return false;
         }
         return true;
+    }
+
+    bool isPerfectSquare() const
+    {
+        if(this->is2Pow() && (this->toLow2Pow() & 0x1) == 0)
+        {
+            return true;
+        }
+        else
+        {
+            // TODO
+        }
+        return false;
     }
 
     std::size_t SetedBits() const
@@ -310,33 +329,42 @@ public:
 
     BigInt operator * (BigInt number)
     {
-        BigInt result;
-        while(true)
-        {
-            if(number.is2Pow())
-            {
-                bool isOne = number.List().size() == 1 && *(number.List().begin()) == 1;
+//        BigInt result;
+//        while(true)
+//        {
+//            if(number.is2Pow())
+//            {
+//                bool isOne = number.List().size() == 1 && *(number.List().begin()) == 1;
 
-                if(isOne)
-                {
-                    return result + *this;
-                }
+//                if(isOne)
+//                {
+//                    return result + *this;
+//                }
 
-                auto temp = std::move(m_number);
-                shift(temp, number.List().size()-1, true);
+//                auto temp = std::move(m_number);
+//                shift(temp, number.List().size()-1, true);
 
-                return result + temp;
+//                return result + temp;
 
-//                return result + (isOne ?  *this : (*this << number.List().size()-1));
-            }
-            else
-            {
-                std::size_t temp = number.toLow2Pow();
-                result += (*this << temp-1);
-                number.DecrementFromIndex(temp-1);
-            }
-        }
-        return result;
+////                return result + (isOne ?  *this : (*this << number.List().size()-1));
+//            }
+//            else
+//            {
+//                std::size_t temp = number.toLow2Pow();
+//                result += (*this << temp-1);
+//                number.DecrementFromIndex(temp-1);
+//            }
+//        }
+//        return result;
+
+        std::string num_1 = "";
+        std::string num_2 = "";
+
+        for(const auto& bit : m_number) num_1 += bit + '0';
+        for(const auto& bit : number.List()) num_2 += bit + '0';
+
+        auto res = toBinary( (std::strtol(num_1.c_str(), NULL, 2) * std::strtol(num_2.c_str(), NULL, 2)), 1);
+        return BigInt(res);
     }
 
     BigInt operator - (int number)
@@ -752,6 +780,76 @@ public:
     bool operator != (BigInt other)
     {
         return !(operator==(other));
+    }
+
+    static BigInt Pow(const BigInt& number, std::size_t pow) // TODO: handle if pow is 2 degree
+    {
+        BigInt result = std::move(number);
+        std::size_t degree = toLow2Pow(pow);
+        auto pow2 = [](std::size_t pow) -> std::size_t
+        {
+            std::size_t count = 0;
+            while(pow)
+            {
+                pow >>= 1;
+                ++count;
+            }
+
+            return --count;
+        };
+
+        for(std::size_t i = 0; i < pow2(degree); ++i)
+            result = result * result;
+
+        for(std::size_t i = 0; i < pow-degree; ++i)
+            result = result * number;
+
+        return result;
+    }
+
+    // https://en.wikipedia.org/wiki/Binary_GCD_algorithm
+    static BigInt gcd(BigInt a, BigInt b)
+    {
+        auto isZero = [](std::list<bool> number) -> bool
+        {
+            return number.size() == 1 && *(number.begin()) == 0;
+        };
+
+        if(a == b) return a;
+        if(isZero(a.List())) return b;
+        if(isZero(b.List())) return a;
+
+        if(a.isEven())
+        {
+            if(b.isOdd())
+            {
+                return gcd(a>>1, b);
+            } else
+            {
+                return gcd(a>>1, b>>1) << 1;
+            }
+        }
+        else
+        {
+            if(b.isEven())
+            {
+                return gcd(a, b>>1);
+            }
+
+            if(a > b)
+            {
+                return gcd((a-b) << 1, b);
+            }
+            else
+            {
+                return gcd((b-a) << 1, a);
+            }
+        }
+    }
+
+    static BigInt lcm(BigInt a, BigInt b)
+    {
+        return (a*b) / gcd(a,b);
     }
 
 };
