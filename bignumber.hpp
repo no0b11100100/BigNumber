@@ -5,8 +5,10 @@
 #include <deque>
 #include <string>
 #include <algorithm>
-#include <map>
+#include <unordered_map>
 #include <cassert>
+#include <cmath>
+#include <climits>
 
 namespace BigInt
 {
@@ -67,6 +69,7 @@ class BigInt
     std::list<bool> m_number;
     bool sign;
     std::size_t setedBits;
+
     void toBinary(int number)
     {
         while(number > 0)
@@ -76,7 +79,19 @@ class BigInt
         }
     }
 
-    std::list<bool> toBinary(int number, int)
+    std::list<bool> toBinary(std::size_t number, int)
+    {
+        std::list<bool> binary;
+        while(number > 0)
+        {
+            binary.push_front(static_cast<bool>(number % 2));
+            number >>= 1;
+        }
+
+        return binary;
+    }
+
+    std::list<bool> toBinary(std::size_t& number, int) const
     {
         std::list<bool> binary;
         while(number > 0)
@@ -217,19 +232,41 @@ public:
         return true;
     }
 
-    // http://oldskola1.narod.ru/Kiselev07/K07.htm
+    // http://oldskola1.narod.ru/Kiselev07/K07.htm +
     // https://www.geeksforgeeks.org/long-division-method-to-find-square-root-with-examples/
-    bool isPerfectSquare() const
+    std::tuple<bool, std::size_t> isPerfectSquare() const
     {
-        if(this->is2Pow() && (this->toLow2Pow() & 0x1) == 0)
+        auto ClosestSquare = [](short unsigned number) -> int
         {
-            return true;
-        }
-        else
+            if(number == 1) return 1;
+            else if(number < 4) return 1;
+            else if(number < 9) return 2;
+            else if(number < 16) return 3;
+            else if(number < 25) return 4;
+            else if(number < 36) return 5;
+            else if(number < 49) return 6;
+            else if(number < 64) return 7;
+            else if(number < 81) return 8;
+            else if(number < 100) return 9;
+            else if(number == 100) return 10;
+        };
+
+        if(auto limit = std::numeric_limits<std::size_t>::max(); *this < BigInt( toBinary( limit, 1) ) )
         {
-            // TODO
+            std::size_t number = this->Decimal();
+            std::size_t Square = sqrt(number);
+            std::cout << number << " " << Square << std::endl;
+            return {number == Square*Square, Square};
+        } else
+        {
+            int dozens = *(std::next(begin(m_number), 0)) * 10 + *(std::next(begin(m_number), 1));
+            for(auto it = std::next(begin(m_number), 2); it != m_number.end(); ++it)
+            {
+
+            }
         }
-        return false;
+
+        return {false, 0};
     }
 
     // https://ideone.com/G9T0Lr
@@ -237,7 +274,7 @@ public:
     bool isPrime() const
     {
         bool notPrime = m_number.size() == 1 && (*(m_number.begin()) == 0 || *(m_number.begin()) == 1); // 0,1
-        bool prime = m_number.size() == 2 &&
+        bool prime = !notPrime && m_number.size() == 2 &&
                 ( (*(m_number.begin()) == 1 && *(std::next(m_number.begin(), 1)) == 0) // 2
                  || ((*(m_number.begin()) == 1 && *(std::next(m_number.begin(), 1)) == 1)) ); // 3
         if(notPrime) return false;
@@ -292,13 +329,26 @@ public:
     }
 
     // https://prog-cpp.ru/simple-multy/
-    // https://brestprog.by/topics/factorization/
+    // https://brestprog.by/topics/factorization/ +
     // https://ideone.com/OMcMN6 - C++ impl
     // https://ideone.com/oSZsIG - C impl
     // https://ideone.com/X2govK - C++ impl
     std::vector<std::size_t> Factorize() const
     {
-        return {};
+//        vector<int> factors;
+//        for (int i = 2; i <= sqrt(x); ++i) {
+//                while (x % i == 0) {
+//                    ++loop;
+//                    factors.push_back(i);
+//                    x /= i;
+//                }
+//            }
+
+//            if (x != 1) {
+//                factors.push_back(x);
+//            }
+
+//            return factors;
     }
 
     BigInt operator / (int number)
@@ -767,7 +817,7 @@ public:
         return number;
     }
 
-    bool operator > (BigInt other)
+    bool operator > (BigInt other) const
     {
         if(m_number.size() > other.List().size()) return true;
         if(m_number.size() < other.List().size()) return false;
@@ -776,7 +826,7 @@ public:
 
         auto value = other.List();
 
-        for(auto it = m_number.begin(), it_1 = value.begin(); it != m_number.end(); ++it, ++it_1)
+        for(std::list<bool>::const_iterator it = m_number.cbegin(), it_1 = value.cbegin(); it != m_number.cend(); ++it, ++it_1)
         {
             if(*it != *it_1) return *it < *it_1 ? false : true;
         }
@@ -784,7 +834,7 @@ public:
         return false;
     }
 
-    bool operator < (BigInt other)
+    bool operator < (BigInt other) const
     {
         if(m_number.size() < other.List().size()) return true;
         if(m_number.size() > other.List().size()) return false;
@@ -793,7 +843,7 @@ public:
 
         auto value = other.List();
 
-        for(auto it = m_number.begin(), it_1 = value.begin(); it != m_number.end(); ++it, ++it_1)
+        for(std::list<bool>::const_iterator it = m_number.cbegin(), it_1 = value.cbegin(); it != m_number.cend(); ++it, ++it_1)
         {
             if(*it != *it_1) return *it > *it_1 ? false : true;
         }
@@ -811,7 +861,7 @@ public:
         return !(operator>(other));
     }
 
-    bool operator == (BigInt other)
+    bool operator == (BigInt other) const
     {
         if(m_number.size() != other.List().size()) return false;
 
@@ -819,7 +869,7 @@ public:
 
         auto value = other.List();
 
-        for(auto it = m_number.begin(), it_1 = value.begin(); it != m_number.end(); ++it, ++it_1)
+        for(auto it = m_number.cbegin(), it_1 = value.cbegin(); it != m_number.cend(); ++it, ++it_1)
         {
             if(*it != *it_1) return false;
         }
