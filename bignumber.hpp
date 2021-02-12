@@ -233,41 +233,39 @@ public:
         return true;
     }
 
+    bool isZero() const
+    {
+        return m_number.size() == 1 && *(m_number.begin()) == 0;
+    }
+
     // http://oldskola1.narod.ru/Kiselev07/K07.htm +
     // https://www.geeksforgeeks.org/long-division-method-to-find-square-root-with-examples/
-    std::tuple<bool, std::size_t> isPerfectSquare() const
+    std::tuple<bool, BigInt> isPerfectSquare() const
     {
-        auto ClosestSquare = [](short unsigned number) -> int
-        {
-            if(number == 1) return 1;
-            else if(number < 4) return 1;
-            else if(number < 9) return 2;
-            else if(number < 16) return 3;
-            else if(number < 25) return 4;
-            else if(number < 36) return 5;
-            else if(number < 49) return 6;
-            else if(number < 64) return 7;
-            else if(number < 81) return 8;
-            else if(number < 100) return 9;
-            else if(number == 100) return 10;
-        };
+        std::list<bool> temp;
+        temp.push_front(1);
+        for(std::size_t i = 0; i < toLow2Pow()-1; ++i) temp.push_back(0);
 
-        if(auto limit = std::numeric_limits<std::size_t>::max(); *this < BigInt( toBinary( limit, 1) ) )
+        BigInt b(temp);
+        BigInt x;
+        BigInt n = *this;
+
+        while(!b.isZero())
         {
-            std::size_t number = this->Decimal();
-            std::size_t Square = sqrt(number);
-            std::cout << number << " " << Square << std::endl;
-            return {number == Square*Square, Square};
-        } else
-        {
-            int dozens = *(std::next(begin(m_number), 0)) * 10 + *(std::next(begin(m_number), 1));
-            for(auto it = std::next(begin(m_number), 2); it != m_number.end(); ++it)
+            if(n >= x + b)
             {
-
+                n = n - x - b;
+                x = (x>>1) + b;
             }
+            else
+            {
+                x >>= 1;
+            }
+
+            b >>= 2;
         }
 
-        return {false, 0};
+        return {false, x};
     }
 
     // https://ideone.com/G9T0Lr
@@ -401,7 +399,6 @@ public:
 
         return result;
     }
-
 
     BigInt operator % (int)
     {
@@ -559,74 +556,83 @@ public:
 
     BigInt operator + (std::list<bool> number) // test and fix
     {
-        auto self_it = rbegin(m_number);
-        auto number_it = rbegin(number);
-        std::list<bool> newNumber;
-        std::size_t size = std::max(m_number.size(), number.size());
-        bool isTransfer = false;
+        std::string num_1 = "";
+        std::string num_2 = "";
 
-        for(std::size_t i = 0; i < size; ++self_it, ++number_it, ++i)
-        {
-            if(self_it == rend(m_number))
-            {
-                for(; number_it != rend(number); ++number_it)
-                {
-                    if(isTransfer)
-                    {
-                        if(*number_it == 1)  newNumber.push_front(0);
-                        else
-                        {
-                            isTransfer = false;
-                            newNumber.push_front(1);
-                        }
-                    }
-                    else newNumber.push_front(*number_it);
-                }
-                break;
-            } else if(number_it == rend(number))
-            {
-                for(; self_it != rend(m_number); ++self_it)
-                {
-                    if(isTransfer)
-                    {
-                        if(*self_it == 1)  newNumber.push_front(0);
-                        else
-                        {
-                            isTransfer = false;
-                            newNumber.push_front(1);
-                        }
-                    }
-                    else newNumber.push_front(*self_it);
-                }
-                break;
-            }
+        for(const auto& bit : m_number) num_1 += bit + '0';
+        for(const auto& bit : number) num_2 += bit + '0';
 
-            if(*self_it == 1 && *number_it == 1)
-            {
-                isTransfer = true;
-                newNumber.push_front(0);
-            } else if(*self_it == 0 && *number_it == 0)
-            {
-                isTransfer ? newNumber.push_front(1) : newNumber.push_front(0);
-                isTransfer = false;
-            } else if(*self_it != *number_it)
-            {
-                if(!isTransfer) newNumber.push_front(1);
-                else
-                {
-                    newNumber.push_front(1);
-                    isTransfer = true;
-                }
-            }
-        }
+        auto res = toBinary( (std::strtol(num_1.c_str(), NULL, 2) + std::strtol(num_2.c_str(), NULL, 2)), 1);
+        return BigInt(res);
 
-        if(isTransfer) newNumber.push_front(1);
+//        auto self_it = rbegin(m_number);
+//        auto number_it = rbegin(number);
+//        std::list<bool> newNumber;
+//        std::size_t size = std::max(m_number.size(), number.size());
+//        bool isTransfer = false;
 
-//        for(auto v : newNumber) std::cout << v << std::endl;
+//        for(std::size_t i = 0; i < size; ++self_it, ++number_it, ++i)
+//        {
+//            if(self_it == rend(m_number))
+//            {
+//                for(; number_it != rend(number); ++number_it)
+//                {
+//                    if(isTransfer)
+//                    {
+//                        if(*number_it == 1)  newNumber.push_front(0);
+//                        else
+//                        {
+//                            isTransfer = false;
+//                            newNumber.push_front(1);
+//                        }
+//                    }
+//                    else newNumber.push_front(*number_it);
+//                }
+//                break;
+//            } else if(number_it == rend(number))
+//            {
+//                for(; self_it != rend(m_number); ++self_it)
+//                {
+//                    if(isTransfer)
+//                    {
+//                        if(*self_it == 1)  newNumber.push_front(0);
+//                        else
+//                        {
+//                            isTransfer = false;
+//                            newNumber.push_front(1);
+//                        }
+//                    }
+//                    else newNumber.push_front(*self_it);
+//                }
+//                break;
+//            }
 
-        assert(*(newNumber.begin()) == 1);
+//            if(*self_it == 1 && *number_it == 1)
+//            {
+//                isTransfer = true;
+//                newNumber.push_front(0);
+//            } else if(*self_it == 0 && *number_it == 0)
+//            {
+//                isTransfer ? newNumber.push_front(1) : newNumber.push_front(0);
+//                isTransfer = false;
+//            } else if(*self_it != *number_it)
+//            {
+//                if(!isTransfer) newNumber.push_front(1);
+//                else
+//                {
+//                    newNumber.push_front(1);
+//                    isTransfer = true;
+//                }
+//            }
+//        }
 
-        return BigInt(newNumber);
+//        if(isTransfer) newNumber.push_front(1);
+
+////        for(auto v : newNumber) std::cout << v << std::endl;
+
+//        assert(*(newNumber.begin()) == 1);
+
+//        return BigInt(newNumber);
     }
 
     BigInt& operator += (BigInt other)
@@ -818,19 +824,26 @@ public:
 
     bool operator > (BigInt other) const
     {
-        if(m_number.size() > other.List().size()) return true;
-        if(m_number.size() < other.List().size()) return false;
+//        if(m_number.size() > other.List().size()) return true;
+//        if(m_number.size() < other.List().size()) return false;
 
-        assert(m_number.size() == other.List().size());
+//        assert(m_number.size() == other.List().size());
 
-        auto value = other.List();
+//        auto value = other.List();
 
-        for(std::list<bool>::const_iterator it = m_number.cbegin(), it_1 = value.cbegin(); it != m_number.cend(); ++it, ++it_1)
-        {
-            if(*it != *it_1) return *it < *it_1 ? false : true;
-        }
+//        for(std::list<bool>::const_iterator it = m_number.cbegin(), it_1 = value.cbegin(); it != m_number.cend(); ++it, ++it_1)
+//        {
+//            if(*it != *it_1) return *it < *it_1 ? false : true;
+//        }
 
-        return false;
+//        return false;
+        std::string num_1 = "";
+        std::string num_2 = "";
+        auto number = other.List();
+        for(const auto& bit : m_number) num_1 += bit + '0';
+        for(const auto& bit : number) num_2 += bit + '0';
+
+        return std::strtol(num_1.c_str(), NULL, 2) > std::strtol(num_2.c_str(), NULL, 2);
     }
 
     bool operator < (BigInt other) const
@@ -852,7 +865,14 @@ public:
 
     bool operator >= (BigInt other)
     {
-        return !(operator<(other));
+        std::string num_1 = "";
+        std::string num_2 = "";
+        auto number = other.List();
+        for(const auto& bit : m_number) num_1 += bit + '0';
+        for(const auto& bit : number) num_2 += bit + '0';
+
+        return std::strtol(num_1.c_str(), NULL, 2) >= std::strtol(num_2.c_str(), NULL, 2);
+//        return !(operator<(other));
     }
 
     bool operator <= (BigInt other)
