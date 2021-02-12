@@ -221,6 +221,7 @@ public:
         }
     }
 
+    // TODO: fix (tested on number 32)
     bool is2Pow() const
     {
         auto head_start = std::next(begin(m_number),1);
@@ -426,44 +427,32 @@ public:
         return result;
     }
 
-    BigInt operator * (BigInt number)
+    BigInt operator * (BigInt other) // need test
     {
-//        BigInt result;
-//        while(true)
-//        {
-//            if(number.is2Pow())
-//            {
-//                bool isOne = number.List().size() == 1 && *(number.List().begin()) == 1;
+        auto number = other.List();
+        auto Number = *this;
+        auto it = rbegin(number);
+        while(true)
+        {
+            if(it == rend(number))
+            {
+//                *this <<= 1;
+                *this = *this - Number;
+                break;
+            }
+            if(*it == 0)
+            {
+                *this <<= 1;
+                *this = *this - Number;
+                ++it;
+                continue;
+            }
 
-//                if(isOne)
-//                {
-//                    return result + *this;
-//                }
+            *this <<= 1;
+            ++it;
+        }
 
-//                auto temp = std::move(m_number);
-//                shift(temp, number.List().size()-1, true);
-
-//                return result + temp;
-
-////                return result + (isOne ?  *this : (*this << number.List().size()-1));
-//            }
-//            else
-//            {
-//                std::size_t temp = number.toLow2Pow();
-//                result += (*this << temp-1);
-//                number.DecrementFromIndex(temp-1);
-//            }
-//        }
-//        return result;
-
-        std::string num_1 = "";
-        std::string num_2 = "";
-
-        for(const auto& bit : m_number) num_1 += bit + '0';
-        for(const auto& bit : number.List()) num_2 += bit + '0';
-
-        auto res = toBinary( (std::strtol(num_1.c_str(), NULL, 2) * std::strtol(num_2.c_str(), NULL, 2)), 1);
-        return BigInt(res);
+        return *this;
     }
 
     BigInt operator - (int number)
@@ -473,68 +462,78 @@ public:
 
     BigInt operator - (std::list<bool> number)
     {
-        auto self_it = rbegin(m_number);
-        auto number_it = rbegin(number);
-        std::list<bool> newNumber;
-        std::size_t size = std::max(m_number.size(), number.size());
-        bool isTransfer = false;
 
-        for(std::size_t i = 0; i < size; ++self_it, ++number_it, ++i)
-        {
-            if(isTransfer) *self_it = 0;
+        std::string num_1 = "";
+        std::string num_2 = "";
 
-            if(self_it == rend(m_number))
-            {
-                for(; number_it != rend(number); ++number_it)
-                {
-                    if(isTransfer)
-                    {
-                        if(*number_it == 0)  newNumber.push_front(1);
-                        else
-                        {
-                            isTransfer = false;
-                            newNumber.push_front(0);
-                        }
-                    }
-                    else newNumber.push_front(*number_it);
-                }
-                break;
-            } else if(number_it == rend(number))
-            {
-                for(; self_it != rend(m_number); ++self_it)
-                {
-                    if(isTransfer)
-                    {
-                        if(*self_it == 0)  newNumber.push_front(1);
-                        else
-                        {
-                            isTransfer = false;
-                            newNumber.push_front(0);
-                        }
-                    }
-                    else newNumber.push_front(*self_it);
-                }
+        for(const auto& bit : m_number) num_1 += bit + '0';
+        for(const auto& bit : number) num_2 += bit + '0';
 
-                if(*self_it == *number_it)
-                {
-                    newNumber.push_front(*self_it);
-                } else
-                {
-                    if(*self_it > *number_it) newNumber.push_front(*self_it);
-                    else
-                    {
-                        isTransfer = true;
-                        newNumber.push_front(1);
-                    }
-                }
-            }
-        }
+        auto res = toBinary( (std::strtol(num_1.c_str(), NULL, 2) - std::strtol(num_2.c_str(), NULL, 2)), 1);
+        return BigInt(res);
 
-        removeZeros(m_number);
+//        auto self_it = rbegin(m_number);
+//        auto number_it = rbegin(number);
+//        std::list<bool> newNumber;
+//        std::size_t size = std::max(m_number.size(), number.size());
+//        bool isTransfer = false;
 
-        assert(*(newNumber.begin()) == 1);
+//        for(std::size_t i = 0; i < size; ++self_it, ++number_it, ++i)
+//        {
+//            if(isTransfer) *self_it = 0;
 
-        return BigInt(newNumber);
+//            if(self_it == rend(m_number))
+//            {
+//                for(; number_it != rend(number); ++number_it)
+//                {
+//                    if(isTransfer)
+//                    {
+//                        if(*number_it == 0)  newNumber.push_front(1);
+//                        else
+//                        {
+//                            isTransfer = false;
+//                            newNumber.push_front(0);
+//                        }
+//                    }
+//                    else newNumber.push_front(*number_it);
+//                }
+//                break;
+//            } else if(number_it == rend(number))
+//            {
+//                for(; self_it != rend(m_number); ++self_it)
+//                {
+//                    if(isTransfer)
+//                    {
+//                        if(*self_it == 0)  newNumber.push_front(1);
+//                        else
+//                        {
+//                            isTransfer = false;
+//                            newNumber.push_front(0);
+//                        }
+//                    }
+//                    else newNumber.push_front(*self_it);
+//                }
+
+//                if(*self_it == *number_it)
+//                {
+//                    newNumber.push_front(*self_it);
+//                } else
+//                {
+//                    if(*self_it > *number_it) newNumber.push_front(*self_it);
+//                    else
+//                    {
+//                        isTransfer = true;
+//                        newNumber.push_front(1);
+//                    }
+//                }
+//            }
+//        }
+
+//        removeZeros(m_number);
+
+//        assert(*(newNumber.begin()) == 1);
+
+//        return BigInt(newNumber);
     }
 
     BigInt operator - (BigInt number)
