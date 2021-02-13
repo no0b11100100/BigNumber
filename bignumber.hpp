@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <list>
+#include <forward_list>
 #include <vector>
 #include <deque>
 #include <string>
@@ -11,6 +12,7 @@
 #include <climits>
 #include <unordered_map>
 #include <type_traits>
+#include <array>
 
 namespace
 {
@@ -32,10 +34,10 @@ struct remove_all_pointers : std::conditional_t<
 {};
 
 template<typename T>
-using remove_all_t = typename remove_all_pointers<std::remove_cvref_t <T>>::type;
+using remove_all_t = typename std::decay_t<remove_all_pointers<T>>;
 
 template<typename T>
-constexpr bool is_integer()
+constexpr bool is_allow_primary()
 {
     using Type = remove_all_t<T>;
     return std::is_same_v<Type, int> ||
@@ -62,13 +64,16 @@ constexpr bool is_integer()
             std::is_same_v<Type, bool>;
 }
 
-template<template<class, class> class Container, class Type>
+template<class Container>
 constexpr bool is_allow_container()
 {
+    using ValueType = typename std::decay_t<Container>::value_type;
     return std::is_same_v<Container, std::string> ||
-           (std::is_same_v<Container, std::vector<Type, std::allocator<Type>>> && is_integer<Type>() ) ||
-           (std::is_same_v<Container, std::list<Type>> && is_integer<Type>() ) ||
-           (std::is_same_v<Container, std::deque<Type>> && is_integer<Type>() );
+            (std::is_same_v<Container, std::vector<ValueType>> && is_allow_primary<ValueType>() ) ||
+            (std::is_same_v<Container, std::list<ValueType>> && is_allow_primary<ValueType>() ) ||
+            (std::is_same_v<Container, std::deque<ValueType>> && is_allow_primary<ValueType>() ) ||
+            (std::is_same_v<Container, std::forward_list<ValueType>> && is_allow_primary<ValueType>() ) ||
+            (std::is_same_v<Container, std::array<ValueType, sizeof (Container)/sizeof(ValueType)>> && is_allow_primary<ValueType>() );
 }
 
 } // namespace
@@ -83,6 +88,7 @@ enum class BASE
     DECIMAL,
     HEXADECIMAL
 };
+
 
 class BigInt
 {
@@ -179,25 +185,30 @@ class BigInt
     }
 
 public:
-    template<typename Type,
-        class = typename std::enable_if_t< is_integer<Type>() ||
-                                           is_allow_container<remove_all_t<Type>, typename Type::value_type>() > >
+    // https://godbolt.org/z/1rb8M1
+    template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
     BigInt(Type&){}
 
-    template<typename Type,
-        class = typename std::enable_if_t< is_integer<Type>() ||
-                                           is_allow_container<remove_all_t<Type>, typename Type::value_type>() > >
-    BigInt(Type&&){}
-
-    template<typename Type,
-        class = typename std::enable_if_t< is_integer<Type>() ||
-                                           is_allow_container<remove_all_t<Type>, typename Type::value_type>() > >
+    template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
     BigInt(const Type&){}
 
-    template<typename Type,
-        class = typename std::enable_if_t< is_integer<Type>() ||
-                                           is_allow_container<remove_all_t<Type>, typename Type::value_type>() > >
-    BigInt(const Type&&){}
+    template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
+    BigInt(Type&&){}
+
+    template<typename Type, class = typename std::enable_if_t< is_allow_container<Type>() > >
+    BigInt(Type&, BASE base){}
+
+    template<typename Type, class = typename std::enable_if_t< is_allow_container<Type>() > >
+    BigInt(const Type&, BASE base){}
+
+    template<typename Type, class = typename std::enable_if_t< is_allow_container<Type>() > >
+    BigInt(Type&&, BASE base){}
+
+    BigInt(const BigInt&) = default;
+    BigInt(BigInt&&) = default;
+
+    BigInt& operator=(const BigInt&) = default;
+    BigInt& operator=(BigInt&&) = default;
 
     BigInt() {}
 
