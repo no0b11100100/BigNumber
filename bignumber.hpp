@@ -10,51 +10,71 @@
 #include <cmath>
 #include <climits>
 #include <unordered_map>
-
-namespace BigInt
-{
+#include <type_traits>
 
 namespace
 {
 
+template <typename T>
+struct identity
+{
+    using type = T;
+};
+
+template<typename T>
+struct remove_all_pointers : std::conditional_t<
+    std::is_pointer_v<T>,
+    remove_all_pointers<
+        std::remove_pointer_t<T>
+    >,
+    identity<T>
+>
+{};
+
+template<typename T>
+using remove_all_t = typename remove_all_pointers<std::remove_cvref_t <T>>::type;
+
 template<typename T>
 constexpr bool is_integer()
 {
-    return std::is_same_v<T, int> ||
-            std::is_same_v<T, unsigned> ||
-            std::is_same_v<T, signed> ||
-            std::is_same_v<T, short> ||
-            std::is_same_v<T, unsigned short> ||
-            std::is_same_v<T, signed short> ||
-            std::is_same_v<T, long> ||
-            std::is_same_v<T, signed long> ||
-            std::is_same_v<T, unsigned long> ||
-            std::is_same_v<T, long long> ||
-            std::is_same_v<T, unsigned long long> ||
-            std::is_same_v<T, signed long long> ||
-            std::is_same_v<T, uint8_t> ||
-            std::is_same_v<T, uint16_t> ||
-            std::is_same_v<T, uint32_t> ||
-            std::is_same_v<T, uint64_t> ||
-            std::is_same_v<T, std::size_t>;
+    using Type = remove_all_t<T>;
+    return std::is_same_v<Type, int> ||
+            std::is_same_v<Type, unsigned> ||
+            std::is_same_v<Type, signed> ||
+            std::is_same_v<Type, short> ||
+            std::is_same_v<Type, unsigned short> ||
+            std::is_same_v<Type, signed short> ||
+            std::is_same_v<Type, long> ||
+            std::is_same_v<Type, signed long> ||
+            std::is_same_v<Type, unsigned long> ||
+            std::is_same_v<Type, long long> ||
+            std::is_same_v<Type, unsigned long long> ||
+            std::is_same_v<Type, signed long long> ||
+            std::is_same_v<Type, uint8_t> ||
+            std::is_same_v<Type, uint16_t> ||
+            std::is_same_v<Type, uint32_t> ||
+            std::is_same_v<Type, uint64_t> ||
+            std::is_same_v<Type, int8_t> ||
+            std::is_same_v<Type, int16_t> ||
+            std::is_same_v<Type, int32_t> ||
+            std::is_same_v<Type, int64_t> ||
+            std::is_same_v<Type, std::size_t> ||
+            std::is_same_v<Type, bool>;
 }
 
-template<typename T>
+template<template<class, class> class Container, class Type>
 constexpr bool is_allow_container()
 {
-    return std::is_same_v<T, std::vector> ||
-           std::is_same_v<T, std::list> ||
-           std::is_same_v<T, std::deque>;
+    return std::is_same_v<Container, std::string> ||
+           (std::is_same_v<Container, std::vector<Type, std::allocator<Type>>> && is_integer<Type>() ) ||
+           (std::is_same_v<Container, std::list<Type>> && is_integer<Type>() ) ||
+           (std::is_same_v<Container, std::deque<Type>> && is_integer<Type>() );
 }
 
-template<class T>
-using is_integer_t = typename std::enable_if_t< std::is_same_v< is_integer<T>(), true > >;
-
-template <class Container>
-using is_container_t = typename std::enable_if_t< std::is_same_v<Container, std::string> || (std::is_same_v< is_allow_container<Container>(), true > &&
-                                                  std::is_same_v< is_integer_t<typename Container::value_type>(), true >) >;
-
 } // namespace
+
+namespace BigInt
+{
 
 enum class BASE
 {
@@ -63,7 +83,6 @@ enum class BASE
     DECIMAL,
     HEXADECIMAL
 };
-
 
 class BigInt
 {
@@ -160,11 +179,25 @@ class BigInt
     }
 
 public:
-    template< typename T, is_integer_t<T> >
-    BigInt(T){}
+    template<typename Type,
+        class = typename std::enable_if_t< is_integer<Type>() ||
+                                           is_allow_container<remove_all_t<Type>, typename Type::value_type>() > >
+    BigInt(Type&){}
 
-    template < class T, is_container_t<T> >
-    BigInt(T){}
+    template<typename Type,
+        class = typename std::enable_if_t< is_integer<Type>() ||
+                                           is_allow_container<remove_all_t<Type>, typename Type::value_type>() > >
+    BigInt(Type&&){}
+
+    template<typename Type,
+        class = typename std::enable_if_t< is_integer<Type>() ||
+                                           is_allow_container<remove_all_t<Type>, typename Type::value_type>() > >
+    BigInt(const Type&){}
+
+    template<typename Type,
+        class = typename std::enable_if_t< is_integer<Type>() ||
+                                           is_allow_container<remove_all_t<Type>, typename Type::value_type>() > >
+    BigInt(const Type&&){}
 
     BigInt() {}
 
