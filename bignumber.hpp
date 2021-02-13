@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cmath>
 #include <climits>
+#include <unordered_map>
 
 namespace BigInt
 {
@@ -188,6 +189,106 @@ public:
         return result;
     }
 
+    std::string Hex() const
+    {
+        std::unordered_map<std::string, char> binToHex = {
+            {"0001", '1'},
+            {"0010", '2'},
+            {"0011", '3'},
+            {"0100", '4'},
+            {"0101", '5'},
+            {"0110", '6'},
+            {"0111", '7'},
+            {"1000", '8'},
+            {"1001", '9'},
+            {"1010", 'A'},
+            {"1011", 'B'},
+            {"1100", 'C'},
+            {"1101", 'D'},
+            {"1110", 'E'},
+            {"1111", 'F'},
+        };
+
+        auto makeChan = [](std::list<bool>::const_reverse_iterator& it, std::list<bool>::const_reverse_iterator& end) -> std::string
+        {
+            std::string chan;
+            chan.reserve(4);
+
+            for(int i = 0; i < 4; ++i, ++it)
+            {
+                if(it == end)
+                {
+                    std::string newChan = "0000";
+                    for(short i = 3; i >= 0; --i)
+                    {
+                        newChan[i] = chan[i];
+                    }
+                    return newChan;
+                }
+                chan += static_cast<char>(*it);
+            }
+
+            return chan;
+        };
+
+        std::string hex;
+        hex.reserve(m_number.size() / 4);
+
+        for(auto it = crbegin(m_number), end = crend(m_number); it != end; ++it)
+        {
+            std::string chan = makeChan(it, end);
+            hex += binToHex[chan];
+        }
+
+        return hex;
+    }
+
+    std::string Octal() const
+    {
+        std::unordered_map<std::string, char> binToHex = {
+            {"001", '1'},
+            {"010", '2'},
+            {"011", '3'},
+            {"100", '4'},
+            {"101", '5'},
+            {"110", '6'},
+            {"111", '7'},
+        };
+
+        auto makeChan = [](std::list<bool>::const_reverse_iterator& it, std::list<bool>::const_reverse_iterator& end) -> std::string
+        {
+            std::string chan;
+            chan.reserve(3);
+
+            for(int i = 0; i < 3; ++i, ++it)
+            {
+                if(it == end)
+                {
+                    std::string newChan = "000";
+                    for(short i = 2; i >= 0; --i)
+                    {
+                        newChan[i] = chan[i];
+                    }
+                    return newChan;
+                }
+                chan += static_cast<char>(*it);
+            }
+
+            return chan;
+        };
+
+        std::string octal;
+        octal.reserve(m_number.size() / 3);
+
+        for(auto it = crbegin(m_number), end = crend(m_number); it != end; ++it)
+        {
+            std::string chan = makeChan(it, end);
+            octal += binToHex[chan];
+        }
+
+        return octal;
+    }
+
     void Print() const
     {
         for(const auto& bit : m_number)
@@ -332,12 +433,11 @@ public:
     // https://ideone.com/OMcMN6 - C++ impl
     // https://ideone.com/oSZsIG - C impl
     // https://ideone.com/X2govK - C++ impl
-    std::vector<std::size_t> Factorize() const
+    std::list<BigInt> Factorize() const
     {
-//        vector<int> factors;
-//        for (int i = 2; i <= sqrt(x); ++i) {
+//        list<BigInt> factors;
+//        for (std::size_t i = 2; i <= sqrt(x); ++i) {
 //                while (x % i == 0) {
-//                    ++loop;
 //                    factors.push_back(i);
 //                    x /= i;
 //                }
@@ -969,6 +1069,40 @@ public:
     static BigInt lcm(BigInt a, BigInt b)
     {
         return (a*b) / gcd(a,b);
+    }
+
+    static BigInt factorial(std::size_t n)
+    {
+        if(n == 1 || n == 0) return BigInt(1);
+
+        bool handleOdd = false;
+        auto uptoNumber = n;
+
+        if((n & 1) == 1)
+        {
+            --uptoNumber;
+            handleOdd = true;
+        }
+
+        BigInt nextSum(uptoNumber);
+        BigInt nextMulti(uptoNumber);
+        BigInt factorial(1);
+
+        while(nextSum >= 2)
+        {
+            factorial = factorial * nextMulti;
+            nextSum -= 2;
+            nextMulti += nextSum;
+        }
+
+        if (handleOdd) factorial = factorial * n;
+
+        return factorial;
+    }
+
+    static BigInt fibinachi(std::size_t n)
+    {
+        return BigInt();
     }
 };
 
