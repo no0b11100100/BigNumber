@@ -80,7 +80,6 @@ constexpr bool is_allow_container()
 
 } // namespace
 
-
 namespace BigInt
 {
 
@@ -104,27 +103,94 @@ class BigInt
     SIGN m_sign;
     std::size_t m_bitSet;
 
+    template<class T>
+    std::list<bool> toBinary(T&& number)
+    {
+        if(!(number > 0)) {
+            number = -number;
+            m_sign = SIGN::NEGATIVE;
+        }
+        else m_sign = SIGN::POSITIVE;
+
+        std::list<bool> list_number;
+        while(number > 0)
+        {
+            bool value = static_cast<bool>(number % 2);
+            if(value == 1) ++m_bitSet;
+            list_number.push_front(value);
+            number >>= 1;
+        }
+
+        return list_number;
+    }
+
+    template<class T>
+    std::list<bool> toBinary(T&& number, BASE base)
+    {
+        if(!number.empty())
+        {
+            if( *(number.begin()) > 0) m_sign = SIGN::POSITIVE;
+            else m_sign = SIGN::NEGATIVE;
+        }
+
+        std::list<bool> list_number;
+        switch (base) {
+        case BASE::BINARY:
+            if(!number.empty() && *(number.begin()) == 1) m_sign = SIGN::NEGATIVE;
+            else m_sign = SIGN::POSITIVE;
+
+            for(auto bit = std::next(number.cbegin(), 1); bit != number.cend(); ++bit)
+            {
+                if(bit == 1) ++m_bitSet;
+                m_number.push_back(bit);
+            }
+            break;
+        case BASE::OCTAL:
+            break;
+        case BASE::DECIMAL:
+            break;
+        case BASE::HEXADECIMAL:
+            break;
+        default:
+            break;
+        }
+
+        return list_number;
+    }
+
 public:
 
     template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
-    BigInt(Type&){}
+    BigInt(Type& value):
+        m_number{toBinary(value)}
+    {}
 
     template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
-    BigInt(const Type&){}
+    BigInt(const Type& value):
+        m_number{toBinary(value)}
+    {}
 
     template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
-    BigInt(Type&&){}
+    BigInt(Type&& value):
+        m_number{toBinary(value)}
+    {}
 
     template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
-    BigInt(Type&, BASE base){}
+    BigInt(Type& value, BASE base):
+        m_number{toBinary(value, base)}
+    {}
 
     template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
-    BigInt(const Type&, BASE base){}
+    BigInt(const Type& value, BASE base):
+        m_number{toBinary(value, base)}
+    {}
 
     template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
-    BigInt(Type&&, BASE base){}
+    BigInt(Type&& value, BASE base):
+        m_number{toBinary(value, base)}
+    {}
 
-    BigInt() :
+    BigInt():
         m_number{0},
         m_sign{SIGN::POSITIVE},
         m_bitSet{0}
