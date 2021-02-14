@@ -14,6 +14,7 @@
 #include <type_traits>
 #include <array>
 #include <climits>
+#include <exception>
 
 namespace
 {
@@ -106,13 +107,20 @@ class BigInt
     template<class T>
     std::list<bool> toBinary(T&& number)
     {
+        std::list<bool> list_number;
+        if(number == 0){
+            list_number.push_back(0);
+            m_sign = SIGN::POSITIVE;
+            m_bitSet = 0;
+            return list_number;
+        }
+
         if(!(number > 0)) {
             number = -number;
             m_sign = SIGN::NEGATIVE;
         }
         else m_sign = SIGN::POSITIVE;
 
-        std::list<bool> list_number;
         while(number > 0)
         {
             bool value = static_cast<bool>(number % 2);
@@ -134,15 +142,23 @@ class BigInt
         }
 
         std::list<bool> list_number;
+
+        if(number.empty())
+        {
+            list_number.push_back(0);
+            m_sign = SIGN::POSITIVE;
+            m_bitSet = 0;
+            return list_number;
+        }
+
         switch (base) {
         case BASE::BINARY:
-            if(!number.empty() && *(number.begin()) == 1) m_sign = SIGN::NEGATIVE;
-            else m_sign = SIGN::POSITIVE;
+            assert(number.size() > 1);
 
-            for(auto bit = std::next(number.cbegin(), 1); bit != number.cend(); ++bit)
+            for(auto it = std::next(begin(number), 1); it != end(number); ++it)
             {
-                if(bit == 1) ++m_bitSet;
-                m_number.push_back(bit);
+                if(*it == 1) ++m_bitSet;
+                list_number.push_back(*it);
             }
             break;
         case BASE::OCTAL:
@@ -156,6 +172,17 @@ class BigInt
         }
 
         return list_number;
+    }
+
+    void removeZeros()
+    {
+        while(true)
+        {
+            auto it = begin(m_number);
+            if(m_number.size() == 1 && *it == 0) break;
+            if(*it == 0) m_number.pop_back();
+            else break;
+        }
     }
 
 public:
@@ -195,6 +222,78 @@ public:
         m_sign{SIGN::POSITIVE},
         m_bitSet{0}
     {}
+
+    void Print() const
+    {
+        for(const auto& bit : m_number)
+            std::cout << bit << std::endl;
+    }
+
+    template<class T, class = typename std::enable_if_t< is_allow_primary<T>()> >
+    friend BigInt operator+(const BigInt& number, T other)
+    {
+        return number + BigInt(other);
+    }
+
+    friend BigInt operator+(const BigInt& number1, const BigInt& number2)
+    {
+        auto number1_it = rbegin(number1.List());
+        auto number2_it = rbegin(number2.List());
+        std::list<bool> result;
+        std::size_t size = std::max(number1.count(), number2.count());
+        bool isTransfer = false;
+
+        for(std::size_t i = 0; i < size; ++number1_it, ++number2_it, ++i)
+        {
+            if(number1_it == rend(number1.List()))
+            {
+                for(; number2_it != rend(number2.List()); ++number2_it)
+                {
+                    if(isTransfer)
+                    {
+                        if(*number2_it == 1) result.push_front(0);
+                        else
+                        {
+                            isTransfer = false;
+                            result.push_front(1);
+                        }
+                    }
+                    else result.push_front(*number2_it);
+                }
+                break;
+            } else if(number2_it == rend(number2.List()))
+            {
+                for(; number1_it != rend(number1.List()); ++number1_it)
+                {
+                    if(isTransfer)
+                    {
+                        if(*number1_it == 1)  result.push_front(0);
+                        else
+                        {
+                            isTransfer = false;
+                            result.push_front(1);
+                        }
+                    }
+                    else result.push_front(*number1_it);
+                }
+                break;
+            }
+
+            if(*number1_it == 1 && *number2_it == 1)
+            {
+                isTransfer = true;
+                result.push_front(0);
+            } else if(*number1_it == 0 && *number2_it == 0)
+            {
+                isTransfer ? result.push_front(1) : result.push_front(0);
+                isTransfer = false;
+            } else if(*number1_it != *number2_it)
+                result.push_front(1);
+        }
+
+        result.push_front(0); // sign
+        return BigInt(result, BASE::BINARY);
+    }
 
     std::string Binary() const
     {
@@ -330,6 +429,41 @@ public:
         }
 
         return octal;
+    }
+
+    const std::list<bool>& List() const
+    {
+        return m_number;
+    }
+
+    bool is2Pow() const
+    {
+        return m_bitSet == 1;
+    }
+
+    std::size_t count() const
+    {
+        return m_bitSet;
+    }
+
+    bool isZero() const
+    {
+        return m_number.size() == 1 && *(m_number.begin()) == 0;
+    }
+
+    bool isPositiove() const
+    {
+        return m_sign == SIGN::POSITIVE ? true : false;
+    }
+
+    bool isNegative() const
+    {
+        return !isPositiove();
+    }
+
+    void ChangeSign()
+    {
+        m_sign = m_sign == SIGN::POSITIVE ? SIGN::NEGATIVE : SIGN::POSITIVE;
     }
 
 };
