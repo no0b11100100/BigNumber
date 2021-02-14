@@ -34,7 +34,8 @@ struct remove_all_pointers : std::conditional_t<
 {};
 
 template<typename T>
-using remove_all_t = typename std::decay_t<remove_all_pointers<T>>;
+using remove_all_t = typename std::decay_t<typename remove_all_pointers<T>::type>;
+
 
 template<typename T>
 constexpr bool is_allow_primary()
@@ -67,7 +68,7 @@ constexpr bool is_allow_primary()
 template<class Container>
 constexpr bool is_allow_container()
 {
-    using ValueType = typename std::decay_t<Container>::value_type;
+    using ValueType = typename remove_all_t<Container>::value_type;
     return std::is_same_v<Container, std::string> ||
             (std::is_same_v<Container, std::vector<ValueType>> && is_allow_primary<ValueType>() ) ||
             (std::is_same_v<Container, std::list<ValueType>> && is_allow_primary<ValueType>() ) ||
@@ -77,6 +78,7 @@ constexpr bool is_allow_container()
 }
 
 } // namespace
+
 
 namespace BigInt
 {
@@ -89,16 +91,20 @@ enum class BASE
     HEXADECIMAL
 };
 
+enum class SIGN : bool
+{
+    POSITIVE,
+    NEGATIVE
+};
 
 class BigInt
 {
     std::list<bool> m_number;
-    bool sign;
-    std::size_t setedBits;
-
-
+    SIGN m_sign;
+    std::size_t m_bitSet;
 
 public:
+
     template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
     BigInt(Type&){}
 
@@ -108,22 +114,20 @@ public:
     template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
     BigInt(Type&&){}
 
-    template<typename Type, class = typename std::enable_if_t< is_allow_container<Type>() > >
+    template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
     BigInt(Type&, BASE base){}
 
-    template<typename Type, class = typename std::enable_if_t< is_allow_container<Type>() > >
+    template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
     BigInt(const Type&, BASE base){}
 
-    template<typename Type, class = typename std::enable_if_t< is_allow_container<Type>() > >
+    template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
     BigInt(Type&&, BASE base){}
 
-    BigInt(const BigInt&) = default;
-    BigInt(BigInt&&) = default;
-
-    BigInt& operator=(const BigInt&) = default;
-    BigInt& operator=(BigInt&&) = default;
-
-    BigInt() {}
+    BigInt() :
+        m_number{0},
+        m_sign{SIGN::POSITIVE},
+        m_bitSet{0}
+    {}
 };
 
 } // namespace BigInt
