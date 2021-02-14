@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <type_traits>
 #include <array>
+#include <climits>
 
 namespace
 {
@@ -128,6 +129,143 @@ public:
         m_sign{SIGN::POSITIVE},
         m_bitSet{0}
     {}
+
+    std::string Binary() const
+    {
+        std::string binary;
+        binary.reserve(m_number.size());
+        for(const auto& bit : m_number)
+        {
+            binary += static_cast<char>(bit);
+        }
+
+        return binary;
+    }
+
+    std::string Decimal() const
+    {
+        auto add = [](std::string& a, const std::string& b){
+            // TODO: count max size of ULL in binary
+            if(a.size() < std::numeric_limits<std::size_t>::max() && b.size() < std::numeric_limits<std::size_t>::max())
+            {
+                a = std::to_string(std::strtoull(a.c_str(), NULL, 2) + std::strtoull(b.c_str(), NULL, 2));
+            }
+            else
+            {
+                // TODO
+            }
+        };
+        std::string result = "0";
+        std::string degree = "1";
+        for(auto bit = m_number.crbegin(); bit != m_number.crend(); ++bit)
+        {
+            if(static_cast<int>(*bit) == 1) add(result, degree);
+            add(degree, degree);
+        }
+
+        return result;
+    }
+
+    std::string Hex() const
+    {
+        std::unordered_map<std::string, char> binToHex = {
+            {"0001", '1'},
+            {"0010", '2'},
+            {"0011", '3'},
+            {"0100", '4'},
+            {"0101", '5'},
+            {"0110", '6'},
+            {"0111", '7'},
+            {"1000", '8'},
+            {"1001", '9'},
+            {"1010", 'A'},
+            {"1011", 'B'},
+            {"1100", 'C'},
+            {"1101", 'D'},
+            {"1110", 'E'},
+            {"1111", 'F'},
+        };
+
+        auto makeChan = [](std::list<bool>::const_reverse_iterator& it, std::list<bool>::const_reverse_iterator& end) -> std::string
+        {
+            std::string chan;
+            chan.reserve(4);
+
+            for(int i = 0; i < 4; ++i, ++it)
+            {
+                if(it == end)
+                {
+                    std::string newChan = "0000";
+                    for(short i = 3; i >= 0; --i)
+                    {
+                        newChan[i] = chan[i];
+                    }
+                    return newChan;
+                }
+                chan += static_cast<char>(*it);
+            }
+
+            return chan;
+        };
+
+        std::string hex;
+        hex.reserve(m_number.size() / 4);
+
+        for(auto it = crbegin(m_number), end = crend(m_number); it != end; ++it)
+        {
+            std::string chan = makeChan(it, end);
+            hex += binToHex[chan];
+        }
+
+        return hex;
+    }
+
+    std::string Octal() const
+    {
+        std::unordered_map<std::string, char> binToOctal = {
+            {"001", '1'},
+            {"010", '2'},
+            {"011", '3'},
+            {"100", '4'},
+            {"101", '5'},
+            {"110", '6'},
+            {"111", '7'},
+        };
+
+        auto makeChan = [](std::list<bool>::const_reverse_iterator& it, std::list<bool>::const_reverse_iterator& end) -> std::string
+        {
+            std::string chan;
+            chan.reserve(3);
+
+            for(int i = 0; i < 3; ++i, ++it)
+            {
+                if(it == end)
+                {
+                    std::string newChan = "000";
+                    for(short i = 2; i >= 0; --i)
+                    {
+                        newChan[i] = chan[i];
+                    }
+                    return newChan;
+                }
+                chan += static_cast<char>(*it);
+            }
+
+            return chan;
+        };
+
+        std::string octal;
+        octal.reserve(m_number.size() / 3);
+
+        for(auto it = crbegin(m_number), end = crend(m_number); it != end; ++it)
+        {
+            std::string chan = makeChan(it, end);
+            octal += binToOctal[chan];
+        }
+
+        return octal;
+    }
+
 };
 
 } // namespace BigInt
