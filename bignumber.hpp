@@ -259,6 +259,7 @@ public:
                     {
                         number.push_front(1);
                         isTransfer = false;
+                        ++restElementsIt;
                         break;
                     }
 
@@ -303,6 +304,102 @@ public:
         }
 
         result.push_front(0); // sign
+
+        return BigInt(result, BASE::BINARY);
+    }
+
+    template<class T, class = typename std::enable_if_t< is_allow_primary<T>()> >
+    friend BigInt operator-(const BigInt& number, T other)
+    {
+        return number - BigInt(other);
+    }
+
+    friend BigInt operator-(const BigInt& rhd, const BigInt& lhd)
+    {
+
+//        std::cout << "input\n";
+//        for(const auto& bit : lhd.List())
+//            std::cout << bit << std::endl;
+
+        std::deque<bool> result;
+        std::size_t size = std::max(rhd.count(), lhd.count());
+        bool isLoan = false;
+        auto rhd_it = crbegin(rhd.List());
+        auto rhd_end_it = crend(rhd.List());
+        auto lhd_it = crbegin(lhd.List());
+        auto lhd_end_it = crend(lhd.List());
+        auto addRestElement = [&isLoan](std::deque<bool>& number,
+                                            std::deque<bool>::const_reverse_iterator restElementsIt,
+                                            std::deque<bool>::const_reverse_iterator endIt)
+        {
+            if(isLoan)
+            {
+                for(; restElementsIt != endIt; ++restElementsIt)
+                {
+                    if(*restElementsIt == 1)
+                    {
+                        number.push_front(0);
+                        ++restElementsIt;
+                        isLoan = false;
+                        break;
+                    }
+
+                    number.push_front(1);
+                }
+            }
+
+            for(;restElementsIt != endIt; ++restElementsIt)
+                number.push_front(*restElementsIt);
+
+            assert(restElementsIt == endIt);
+        };
+
+        for(size_t i = size; i >= 0; --i, ++rhd_it, ++lhd_it)
+        {
+            if(rhd_it == rhd_end_it)
+            {
+                // TODO: handle case when rhd < lhd
+                break;
+            }
+            else if(lhd_it == lhd_end_it)
+            {
+                addRestElement(result, rhd_it, rhd_end_it);
+                break;
+            }
+
+            bool bit = *rhd_it;
+            if(isLoan) bit = 0;
+
+            if(bit > *lhd_it)
+            {
+                isLoan = false;
+                result.push_front(1);
+            }
+            else if(bit == 1 && bit == *lhd_it)
+            {
+                isLoan = false;
+                result.push_front(0);
+            }
+            else if( bit == *lhd_it)
+            {
+                if(isLoan) result.push_front(1);
+                else result.push_front(0);
+            }
+            else
+            {
+                if(!isLoan)
+                {
+                    result.push_front(1);
+                    isLoan = true;
+                }
+                else
+                    result.push_front(0);
+            }
+
+        }
+
+        for(const auto& bit : result)
+            std::cout << bit << std::endl;
 
         return BigInt(result, BASE::BINARY);
     }
