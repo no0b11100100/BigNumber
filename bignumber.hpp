@@ -14,7 +14,8 @@
 #include <type_traits>
 #include <array>
 #include <climits>
-#include <exception>
+#include <functional>
+#include <optional>
 
 namespace
 {
@@ -100,14 +101,14 @@ enum class SIGN : bool
 
 class BigInt
 {
-    std::list<bool> m_number;
+    std::deque<bool> m_number;
     SIGN m_sign;
     std::size_t m_bitSet;
 
     template<class T>
-    std::list<bool> toBinary(T&& number)
+    std::deque<bool> toBinary(T&& number)
     {
-        std::list<bool> list_number;
+        std::deque<bool> list_number;
         if(number == 0){
             list_number.push_back(0);
             m_sign = SIGN::POSITIVE;
@@ -133,7 +134,7 @@ class BigInt
     }
 
     template<class T>
-    std::list<bool> toBinary(T&& number, BASE base)
+    std::deque<bool> toBinary(T&& number, BASE base)
     {
         if(!number.empty())
         {
@@ -141,7 +142,7 @@ class BigInt
             else m_sign = SIGN::NEGATIVE;
         }
 
-        std::list<bool> list_number;
+        std::deque<bool> list_number;
 
         if(number.empty())
         {
@@ -164,6 +165,7 @@ class BigInt
         case BASE::OCTAL:
             break;
         case BASE::DECIMAL:
+            // TODO: impl divmod num on 2 and add
             break;
         case BASE::HEXADECIMAL:
             break;
@@ -235,63 +237,73 @@ public:
         return number + BigInt(other);
     }
 
-    friend BigInt operator+(const BigInt& number1, const BigInt& number2)
+    friend BigInt operator+(const BigInt& rhd, const BigInt& lhd)
     {
-        auto number1_it = rbegin(number1.List());
-        auto number2_it = rbegin(number2.List());
-        std::list<bool> result;
-        std::size_t size = std::max(number1.count(), number2.count());
+        std::deque<bool> result;
+        std::size_t size = std::max(rhd.count(), lhd.count());
         bool isTransfer = false;
+        auto rhd_it = crbegin(rhd.List());
+        auto rhd_end_it = crend(rhd.List());
+        auto lhd_it = crbegin(lhd.List());
+        auto lhd_end_it = crend(lhd.List());
 
-        for(std::size_t i = 0; i < size; ++number1_it, ++number2_it, ++i)
+        auto addRestElement = [&isTransfer](std::deque<bool>& number,
+                                            std::deque<bool>::const_reverse_iterator restElementsIt,
+                                            std::deque<bool>::const_reverse_iterator endIt)
         {
-            if(number1_it == rend(number1.List()))
+            if(isTransfer)
             {
-                for(; number2_it != rend(number2.List()); ++number2_it)
+                for(; restElementsIt != endIt; ++restElementsIt)
                 {
-                    if(isTransfer)
+                    if(*restElementsIt == 0)
                     {
-                        if(*number2_it == 1) result.push_front(0);
-                        else
-                        {
-                            isTransfer = false;
-                            result.push_front(1);
-                        }
+                        number.push_front(1);
+                        isTransfer = false;
+                        break;
                     }
-                    else result.push_front(*number2_it);
+
+                    number.push_front(0);
                 }
+            }
+
+            for(auto it = restElementsIt; it != endIt; ++it)
+                number.push_front(*it);
+
+            if(isTransfer) number.push_front(1);
+        };
+
+        for(size_t i = size; i >= 0; --i, ++rhd_it, ++lhd_it)
+        {
+            if(rhd_it == rhd_end_it)
+            {
+                addRestElement(result, lhd_it, lhd_end_it);
                 break;
-            } else if(number2_it == rend(number2.List()))
+            }
+            else if (lhd_it == lhd_end_it)
             {
-                for(; number1_it != rend(number1.List()); ++number1_it)
-                {
-                    if(isTransfer)
-                    {
-                        if(*number1_it == 1)  result.push_front(0);
-                        else
-                        {
-                            isTransfer = false;
-                            result.push_front(1);
-                        }
-                    }
-                    else result.push_front(*number1_it);
-                }
+                addRestElement(result, rhd_it, rhd_end_it);
                 break;
             }
 
-            if(*number1_it == 1 && *number2_it == 1)
+            if(*rhd_it == 1 && *lhd_it == 1)
             {
-                isTransfer = true;
-                result.push_front(0);
-            } else if(*number1_it == 0 && *number2_it == 0)
+                if(isTransfer)
+                    result.push_front(1);
+                else
+                {
+                    isTransfer = true;
+                    result.push_front(0);
+                }
+            } else if(*rhd_it == 0 && *lhd_it == 0)
             {
                 isTransfer ? result.push_front(1) : result.push_front(0);
                 isTransfer = false;
-            } else if(*number1_it != *number2_it)
-                result.push_front(1);
+            } else if(*rhd_it != *lhd_it)
+                isTransfer ? result.push_front(0) : result.push_front(1);
         }
 
         result.push_front(0); // sign
+
         return BigInt(result, BASE::BINARY);
     }
 
@@ -310,15 +322,7 @@ public:
     std::string Decimal() const
     {
         auto add = [](std::string& a, const std::string& b){
-            // TODO: count max size of ULL in binary
-            if(a.size() < std::numeric_limits<std::size_t>::max() && b.size() < std::numeric_limits<std::size_t>::max())
-            {
-                a = std::to_string(std::strtoull(a.c_str(), NULL, 2) + std::strtoull(b.c_str(), NULL, 2));
-            }
-            else
-            {
-                // TODO
-            }
+
         };
         std::string result = "0";
         std::string degree = "1";
@@ -351,7 +355,7 @@ public:
             {"1111", 'F'},
         };
 
-        auto makeChan = [](std::list<bool>::const_reverse_iterator& it, std::list<bool>::const_reverse_iterator& end) -> std::string
+        auto makeChan = [](std::deque<bool>::const_reverse_iterator& it, std::deque<bool>::const_reverse_iterator& end) -> std::string
         {
             std::string chan;
             chan.reserve(4);
@@ -397,7 +401,7 @@ public:
             {"111", '7'},
         };
 
-        auto makeChan = [](std::list<bool>::const_reverse_iterator& it, std::list<bool>::const_reverse_iterator& end) -> std::string
+        auto makeChan = [](std::deque<bool>::const_reverse_iterator& it, std::deque<bool>::const_reverse_iterator& end) -> std::string
         {
             std::string chan;
             chan.reserve(3);
@@ -431,7 +435,7 @@ public:
         return octal;
     }
 
-    const std::list<bool>& List() const
+    const std::deque<bool>& List() const
     {
         return m_number;
     }
