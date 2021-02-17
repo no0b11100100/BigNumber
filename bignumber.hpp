@@ -16,6 +16,7 @@
 #include <climits>
 #include <functional>
 #include <optional>
+#include <thread>
 
 namespace
 {
@@ -187,6 +188,94 @@ class BigInt
         }
     }
 
+    struct Minus
+    {
+        BigInt operator()(const BigInt& rhd, const BigInt& lhd)
+        {
+            std::deque<bool> result;
+            std::size_t size = std::max(rhd.count(), lhd.count());
+            bool isLoan = false;
+            auto rhd_it = crbegin(rhd.List());
+            auto rhd_end_it = crend(rhd.List());
+            auto lhd_it = crbegin(lhd.List());
+            auto lhd_end_it = crend(lhd.List());
+            auto addRestElement = [&isLoan](std::deque<bool>& number,
+                                                std::deque<bool>::const_reverse_iterator restElementsIt,
+                                                std::deque<bool>::const_reverse_iterator endIt)
+            {
+                if(isLoan)
+                {
+                    for(; restElementsIt != endIt; ++restElementsIt)
+                    {
+                        if(*restElementsIt == 1)
+                        {
+                            number.push_front(0);
+                            ++restElementsIt;
+                            isLoan = false;
+                            break;
+                        }
+
+                        number.push_front(1);
+                    }
+                }
+
+                for(;restElementsIt != endIt; ++restElementsIt)
+                    number.push_front(*restElementsIt);
+
+                assert(restElementsIt == endIt);
+            };
+
+            for(size_t i = size; i >= 0; --i, ++rhd_it, ++lhd_it)
+            {
+                if(lhd_it == lhd_end_it)
+                {
+                    addRestElement(result, rhd_it, rhd_end_it);
+                    break;
+                }
+
+                bool bit = *rhd_it;
+                if(isLoan) bit = 0;
+
+                if(bit > *lhd_it)
+                {
+                    isLoan = false;
+                    result.push_front(1);
+                }
+                else if(bit == 1 && bit == *lhd_it)
+                {
+                    isLoan = false;
+                    result.push_front(0);
+                }
+                else if( bit == *lhd_it)
+                {
+                    if(isLoan) result.push_front(1);
+                    else result.push_front(0);
+                }
+                else
+                {
+                    if(!isLoan)
+                    {
+                        result.push_front(1);
+                        isLoan = true;
+                    }
+                    else
+                        result.push_front(0);
+                }
+
+            }
+
+            for(const auto& bit : result)
+                std::cout << bit << std::endl;
+
+            return BigInt(result, BASE::BINARY);
+        }
+    };
+
+    void offsetByUnits()
+    {
+        m_number.push_back(1);
+    }
+
 public:
 
     template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
@@ -314,94 +403,104 @@ public:
         return number - BigInt(other);
     }
 
-    friend BigInt operator-(const BigInt& rhd, const BigInt& lhd)
+    friend BigInt operator-(const BigInt& rhs, const BigInt& lhs)
     {
+        Minus m;
+        if(rhs < lhs) return m(lhs, rhs);
+        else return m(rhs, lhs);
+    }
 
-//        std::cout << "input\n";
-//        for(const auto& bit : lhd.List())
-//            std::cout << bit << std::endl;
+    friend bool operator >(const BigInt& rhs, const BigInt& lhs)
+    {
+        if(rhs.count() > lhs.count()) return true;
+        else if(rhs.count() < lhs.count()) return false;
 
-        std::deque<bool> result;
-        std::size_t size = std::max(rhd.count(), lhd.count());
-        bool isLoan = false;
-        auto rhd_it = crbegin(rhd.List());
-        auto rhd_end_it = crend(rhd.List());
-        auto lhd_it = crbegin(lhd.List());
-        auto lhd_end_it = crend(lhd.List());
-        auto addRestElement = [&isLoan](std::deque<bool>& number,
-                                            std::deque<bool>::const_reverse_iterator restElementsIt,
-                                            std::deque<bool>::const_reverse_iterator endIt)
-        {
-            if(isLoan)
-            {
-                for(; restElementsIt != endIt; ++restElementsIt)
-                {
-                    if(*restElementsIt == 1)
-                    {
-                        number.push_front(0);
-                        ++restElementsIt;
-                        isLoan = false;
-                        break;
-                    }
+        auto rhs_it = begin(rhs.List());
+        auto lhs_it = begin(lhs.List());
 
-                    number.push_front(1);
-                }
-            }
+        for(; rhs_it != end(rhs.List()); ++lhs_it, ++rhs_it)
+            if(auto rhs_bit = *rhs_it, lhs_bit = *lhs_it;
+                    rhs_bit != lhs_bit && rhs_bit < lhs_bit)
+                return false;
 
-            for(;restElementsIt != endIt; ++restElementsIt)
-                number.push_front(*restElementsIt);
+        return true;
+    }
 
-            assert(restElementsIt == endIt);
-        };
+    friend bool operator <(const BigInt& rhs, const BigInt& lhs)
+    {
+        if(rhs.count() < lhs.count()) return true;
+        else if(rhs.count() > lhs.count()) return false;
 
-        for(size_t i = size; i >= 0; --i, ++rhd_it, ++lhd_it)
-        {
-            if(rhd_it == rhd_end_it)
-            {
-                // TODO: handle case when rhd < lhd
-                break;
-            }
-            else if(lhd_it == lhd_end_it)
-            {
-                addRestElement(result, rhd_it, rhd_end_it);
-                break;
-            }
+        auto rhs_it = begin(rhs.List());
+        auto lhs_it = begin(lhs.List());
 
-            bool bit = *rhd_it;
-            if(isLoan) bit = 0;
+        for(; rhs_it != end(rhs.List()); ++lhs_it, ++rhs_it)
+            if(auto rhs_bit = *rhs_it, lhs_bit = *lhs_it;
+                    rhs_bit != lhs_bit && rhs_bit > lhs_bit)
+                return false;
 
-            if(bit > *lhd_it)
-            {
-                isLoan = false;
-                result.push_front(1);
-            }
-            else if(bit == 1 && bit == *lhd_it)
-            {
-                isLoan = false;
-                result.push_front(0);
-            }
-            else if( bit == *lhd_it)
-            {
-                if(isLoan) result.push_front(1);
-                else result.push_front(0);
-            }
-            else
-            {
-                if(!isLoan)
-                {
-                    result.push_front(1);
-                    isLoan = true;
-                }
-                else
-                    result.push_front(0);
-            }
+        return true;
+    }
 
-        }
+    friend bool operator >=(const BigInt& rhs, const BigInt& lhs)
+    {
+        return !(operator<(rhs, lhs));
+    }
 
-        for(const auto& bit : result)
-            std::cout << bit << std::endl;
+    friend bool operator <=(const BigInt& rhs, const BigInt& lhs)
+    {
+        return !(operator>(rhs, lhs));
+    }
 
-        return BigInt(result, BASE::BINARY);
+    friend bool operator ==(const BigInt& rhs, const BigInt& lhs)
+    {
+        if(rhs.count() != lhs.count()) return false;
+
+        for(auto rhs_it = begin(rhs.List()), lhs_it = begin(lhs.List()); rhs_it != end(rhs.List()); ++lhs_it, ++rhs_it)
+            if(auto rhs_bit = *rhs_it, lhs_bit = *lhs_it; rhs_bit != lhs_bit)
+                return false;
+
+        return true;
+    }
+
+    friend bool operator !=(const BigInt& rhs, const BigInt& lhs)
+    {
+        return !(operator==(rhs, lhs));
+    }
+
+    BigInt operator <<(size_t _shifts)
+    {
+        std::deque<bool> newNumber = m_number;
+        for(size_t i {0}; i < _shifts; ++i)
+            newNumber.push_back(0);
+
+        return BigInt(newNumber, BASE::BINARY);
+    }
+
+    BigInt& operator <<=(size_t _shifts)
+    {
+        for(size_t i {0}; i < _shifts; ++i)
+            m_number.push_back(0);
+        return *this;
+    }
+
+    BigInt operator >>(size_t _shifts)
+    {
+        if(m_number.size() < _shifts) return *this;
+
+        std::deque<bool> newNumber = m_number;
+        for(size_t i {0}; i < _shifts; ++i)
+            newNumber.pop_back();
+
+        return BigInt(newNumber, BASE::BINARY);
+    }
+
+    BigInt& operator >>=(size_t _shifts)
+    {
+        if(m_number.size() < _shifts) return *this;
+        for(size_t i {0}; i < _shifts; ++i)
+            m_number.pop_back();
+        return *this;
     }
 
     std::string Binary() const
