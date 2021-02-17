@@ -9,14 +9,8 @@
 #include <unordered_map>
 #include <cassert>
 #include <cmath>
-#include <climits>
-#include <unordered_map>
-#include <type_traits>
 #include <array>
-#include <climits>
-#include <functional>
-#include <optional>
-#include <thread>
+#include <algorithm>
 
 namespace
 {
@@ -517,8 +511,46 @@ public:
 
     std::string Decimal() const
     {
-        auto add = [](std::string& a, const std::string& b){
+        auto add = [](std::string& num1, const std::string& num2)
+        {
+            size_t remainder = 0;
+            auto it_num1 = rbegin(num1);
+            auto it_num2 = crbegin(num2);
 
+            while(true)
+            {
+                if(it_num2 == crend(num2))
+                {
+                    assert(remainder < 10);
+
+                    if(remainder != 0)
+                    {
+                        while(true)
+                        {
+                            if(it_num1 == rend(num1))
+                            {
+                                if(remainder != 0) num1.insert(0, std::to_string(remainder));
+                                break;
+                            }
+
+                            int newDigit = (*it_num1-'0') + remainder;
+                            *it_num1 = (newDigit % 10) + '0';
+                            remainder = newDigit / 10;
+                            ++it_num1;
+                        }
+                    }
+
+                    break;
+                }
+                int digit1 = *it_num1 - '0';
+                int digit2 = *it_num2 - '0';
+                int newDigit = digit1 + digit2;
+                assert(newDigit < 100);
+                *it_num1 = newDigit % 10 + '0';
+                remainder = newDigit / 10;
+                ++it_num2;
+                ++it_num1;
+            }
         };
         std::string result = "0";
         std::string degree = "1";
