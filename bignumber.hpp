@@ -228,24 +228,28 @@ class BigInt
                 }
 
                 bool bit = *rhd_it;
-                if(isLoan) bit = 0;
 
-                if(bit > *lhd_it)
+                if(bit > *lhd_it) // 1 0
                 {
-                    isLoan = false;
-                    result.push_front(1);
+                    if(isLoan) result.push_front(0);
+                    else
+                    {
+                        result.push_front(1);
+                        isLoan = false;
+                    }
+
                 }
-                else if(bit == 1 && bit == *lhd_it)
+                else if(bit == 1 && bit == *lhd_it) // 1 1
                 {
                     isLoan = false;
                     result.push_front(0);
                 }
-                else if( bit == *lhd_it)
+                else if( bit == *lhd_it) // 0 0
                 {
                     if(isLoan) result.push_front(1);
                     else result.push_front(0);
                 }
-                else
+                else // 0 1
                 {
                     if(!isLoan)
                     {
@@ -255,11 +259,7 @@ class BigInt
                     else
                         result.push_front(0);
                 }
-
             }
-
-            for(const auto& bit : result)
-                std::cout << bit << std::endl;
 
             return BigInt(result, BASE::BINARY);
         }
