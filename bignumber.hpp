@@ -404,6 +404,62 @@ public:
         else return m(rhs, lhs);
     }
 
+    BigInt operator-=(const BigInt& other)
+    {
+        return operator-(*this, other);
+    }
+
+    friend BigInt operator*(const BigInt& rhs, const BigInt& lhs)
+    {
+        if(lhs.is2Pow())
+        {
+            return rhs << lhs.count();
+        }
+        else if(rhs.is2Pow())
+        {
+            return lhs << rhs.count();
+        }
+        else if(lhs.count() == lhs.List().size())
+        {
+            return (rhs << lhs.count()) - rhs;
+        }
+        else if(rhs.count() == rhs.List().size())
+        {
+            return lhs << rhs.count();
+        }
+        else if(lhs.count()+1 == lhs.List().size()
+                && *crbegin(lhs.List()) == 0)
+        {
+            return (rhs << lhs.count()) - rhs<<1;
+        }
+        else if(rhs.count()+1 == rhs.List().size()
+                 && *crbegin(rhs.List()) == 0)
+        {
+            return (lhs << rhs.count()) - lhs<<1;
+        }
+
+        // TODO: select optimal number
+
+        BigInt result = rhs;
+        size_t _count = 0;
+        for(auto it = crbegin(rhs.List()); it != crend(rhs.List()); ++it)
+        {
+            if(*it == 1) ++_count;
+            else
+            {
+                if(_count > 1) result -= rhs;
+                _count = 0;
+                continue;
+            }
+
+            result <<= 1;
+        }
+
+        if(_count > 1) result -= rhs;
+
+        return result;
+    }
+
     friend bool operator >(const BigInt& rhs, const BigInt& lhs)
     {
         if(rhs.count() > lhs.count()) return true;
@@ -462,7 +518,7 @@ public:
         return !(operator==(rhs, lhs));
     }
 
-    BigInt operator <<(size_t _shifts)
+    BigInt operator <<(size_t _shifts) const
     {
         std::deque<bool> newNumber = m_number;
         for(size_t i {0}; i < _shifts; ++i)
@@ -478,7 +534,7 @@ public:
         return *this;
     }
 
-    BigInt operator >>(size_t _shifts)
+    BigInt operator >>(size_t _shifts) const
     {
         if(m_number.size() < _shifts) return *this;
 
@@ -681,6 +737,16 @@ public:
     bool isZero() const
     {
         return m_number.size() == 1 && *(m_number.begin()) == 0;
+    }
+
+    bool isEven() const
+    {
+        return *crbegin(m_number) == 0;
+    }
+
+    bool isOdd() const
+    {
+        return !(isEven());
     }
 
     bool isPositiove() const
