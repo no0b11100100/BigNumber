@@ -112,7 +112,7 @@ class BigInt final
             return list_number;
         }
 
-        if(!(number > 0)) {
+        if(number < 0) {
             number = -number;
             m_sign = SIGN::NEGATIVE;
         }
@@ -162,6 +162,26 @@ class BigInt final
             break;
         case BASE::DECIMAL:
             // TODO: impl divmod num on 2 and add
+            // https://godbolt.org/z/xvYcG6
+            auto divMod = [](T&& number)
+            {
+                int rem = 0;
+                int dvnd;
+                int quot;
+                for(auto it = begin(number); it != end(number); ++it){
+                    dvnd = (rem * 10) + *it;
+                    rem = dvnd % 2; // optimaze dvnd & 1
+                    quot = dvnd / 2;
+                    *it = quot;
+                }
+
+                return static_cast<bool>(rem);
+            };
+
+            std::deque<bool> num;
+            while(!number.empty())
+                num.push_back( divMod(number) );
+
             break;
         case BASE::HEXADECIMAL:
             break;
