@@ -266,6 +266,46 @@ class BigInt final
         }
     };
 
+    struct DivMod
+    {
+        std::tuple< BigInt, BigInt > operator()(const BigInt& dividend, const BigInt& divisor)
+        {
+            BigInt tmp;
+            BigInt result;
+            BigInt unit(1);
+            while(dividend >= divisor)
+            {
+                size_t diff = dividend.Bit() - divisor.Bit();
+
+                // TODO: test with offset with 1
+                if( compare(dividend.List().cbegin(), divisor.List().cbegin(), divisor.List().cend()) )
+                {
+                    tmp <<= diff;
+                }
+                else
+                {
+                    --diff;
+                    tmp <<= diff;
+                }
+
+//                dividend -= tmp;
+                result = result + (unit<<diff); // optimase unit<<diff ??
+            }
+
+            return std::make_tuple(result, dividend);
+        }
+
+    private:
+        bool compare(std::deque<bool>::const_iterator it, std::deque<bool>::const_iterator start, std::deque<bool>::const_iterator end)
+        {
+            for(; start != end; ++it, ++start, ++end)
+                if(*it != *start && *it > *start)
+                    return true;
+
+            return false;
+        }
+    };
+
     void offsetByUnits()
     {
         m_number.push_back(1);
@@ -448,42 +488,28 @@ public:
 
         BigInt res;
         BigInt tmp = lhs;
-        size_t _distance = 0;
+        size_t offset = 0;
         auto handleZero = [&]()
         {
-            if(_distance >= 1)
+            if(offset >= 1)
             {
-                std::cout << "distance " << _distance << std::endl;
+                std::cout << "distance " << offset << std::endl;
                 res = plus(res.List(), tmp.List());
-                if(_distance > 1) res = minus(res.List(), lhs.List());
-                _distance = 0;
+                if(offset > 1) res = minus(res.List(), lhs.List());
+                offset = 0;
             }
         };
 
-        for(auto it = rbegin(rhs.List()); it != rend(rhs.List()); ++it)
+        for(auto it = crbegin(rhs.List()); it != crend(rhs.List()); ++it)
         {
+            if(*it == 0) tmp <<= 1;
             if(*it == 1)
             {
-                ++_distance;
-                if(*(std::next(it, 1)) == 0 && std::next(it, 1) != rend(rhs.List()) )
-                {
-                    handleZero();
-                }
-                tmp <<= 1;
-            }
-            else if(*it == 0)
-            {
+                ++offset;
+                if( *std::next(it, 1) == 0 || std::next(it, 1) == crend(rhs.List()) ) handleZero();
                 tmp <<= 1;
             }
         }
-
-        tmp >>= 1;
-        handleZero();
-
-        std::cout << "tmp\n";
-        for(auto v : res.List())
-            std::cout << v << " ";
-        std::cout << "tmp end\n";
 
         return res;
     }
