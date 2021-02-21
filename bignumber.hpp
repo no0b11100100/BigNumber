@@ -11,6 +11,7 @@
 #include <cmath>
 #include <array>
 #include <algorithm>
+#include <cstdlib>
 
 namespace
 {
@@ -94,7 +95,7 @@ enum class SIGN : bool
     NEGATIVE
 };
 
-class BigInt
+class BigInt final
 {
     std::deque<bool> m_number;
     SIGN m_sign;
@@ -184,7 +185,7 @@ class BigInt
 
     struct Minus
     {
-        BigInt operator()(const BigInt& rhd, const BigInt& lhd)
+        std::deque<bool> operator()(const BigInt& rhd, const BigInt& lhd)
         {
             std::deque<bool> result;
             std::size_t size = std::max(rhd.count(), lhd.count());
@@ -261,7 +262,7 @@ class BigInt
                 }
             }
 
-            return BigInt(result, BASE::BINARY);
+            return result;
         }
     };
 
@@ -269,6 +270,13 @@ class BigInt
     {
         m_number.push_back(1);
     }
+
+    // TODO: count bits
+    BigInt(const std::deque<bool>& number, SIGN sign, size_t bits = 0):
+        m_number{number},
+        m_sign{sign},
+        m_bitSet{bits}
+    {}
 
 public:
 
@@ -386,9 +394,7 @@ public:
                 isTransfer ? result.push_front(0) : result.push_front(1);
         }
 
-        result.push_front(0); // sign
-
-        return BigInt(result, BASE::BINARY);
+        return BigInt(result, SIGN::POSITIVE);
     }
 
     template<class T, class = typename std::enable_if_t< is_allow_primary<T>()> >
@@ -400,8 +406,17 @@ public:
     friend BigInt operator-(const BigInt& rhs, const BigInt& lhs)
     {
         Minus m;
-        if(rhs < lhs) return m(lhs, rhs);
-        else return m(rhs, lhs);
+        if(rhs < lhs)
+        {
+            auto result =  m(lhs, rhs);
+            return BigInt(result, SIGN::NEGATIVE);
+        }
+        else
+        {
+            auto result =  m(rhs, lhs);
+            return BigInt(result, SIGN::POSITIVE);
+        }
+
     }
 
     BigInt operator-=(const BigInt& other)
@@ -411,53 +426,66 @@ public:
 
     friend BigInt operator*(const BigInt& rhs, const BigInt& lhs)
     {
-        if(lhs.is2Pow())
-        {
-            return rhs << lhs.count();
-        }
-        else if(rhs.is2Pow())
-        {
-            return lhs << rhs.count();
-        }
-        else if(lhs.count() == lhs.List().size())
-        {
-            return (rhs << lhs.count()) - rhs;
-        }
-        else if(rhs.count() == rhs.List().size())
-        {
-            return lhs << rhs.count();
-        }
-        else if(lhs.count()+1 == lhs.List().size()
-                && *crbegin(lhs.List()) == 0)
-        {
-            return (rhs << lhs.count()) - rhs<<1;
-        }
-        else if(rhs.count()+1 == rhs.List().size()
-                 && *crbegin(rhs.List()) == 0)
-        {
-            return (lhs << rhs.count()) - lhs<<1;
-        }
+        auto minus = [](std::deque<bool> a, std::deque<bool> b){
+            std::string s1;
+            std::string s2;
 
-        // TODO: select optimal number
+            for(auto v : a) s1 += std::to_string(v);
+            for(auto v : b) s2 += std::to_string(v);
 
-        BigInt result = rhs;
-        size_t _count = 0;
-        for(auto it = crbegin(rhs.List()); it != crend(rhs.List()); ++it)
+            return BigInt( std::strtoull(s1.c_str(), NULL, 2) - std::strtoull(s2.c_str(), NULL, 2)  );
+        };
+
+        auto plus = [](std::deque<bool> a, std::deque<bool> b){
+            std::string s1;
+            std::string s2;
+
+            for(auto v : a) s1 += std::to_string(v);
+            for(auto v : b) s2 += std::to_string(v);
+
+            return BigInt( std::strtoull(s1.c_str(), NULL, 2) + std::strtoull(s2.c_str(), NULL, 2)  );
+        };
+
+        BigInt res;
+        BigInt tmp = lhs;
+        size_t _distance = 0;
+        auto handleZero = [&]()
         {
-            if(*it == 1) ++_count;
-            else
+            if(_distance >= 1)
             {
-                if(_count > 1) result -= rhs;
-                _count = 0;
-                continue;
+                std::cout << "distance " << _distance << std::endl;
+                res = plus(res.List(), tmp.List());
+                if(_distance > 1) res = minus(res.List(), lhs.List());
+                _distance = 0;
             }
+        };
 
-            result <<= 1;
+        for(auto it = rbegin(rhs.List()); it != rend(rhs.List()); ++it)
+        {
+            if(*it == 1)
+            {
+                ++_distance;
+                if(*(std::next(it, 1)) == 0 && std::next(it, 1) != rend(rhs.List()) )
+                {
+                    handleZero();
+                }
+                tmp <<= 1;
+            }
+            else if(*it == 0)
+            {
+                tmp <<= 1;
+            }
         }
 
-        if(_count > 1) result -= rhs;
+        tmp >>= 1;
+        handleZero();
 
-        return result;
+        std::cout << "tmp\n";
+        for(auto v : res.List())
+            std::cout << v << " ";
+        std::cout << "tmp end\n";
+
+        return res;
     }
 
     friend bool operator >(const BigInt& rhs, const BigInt& lhs)
@@ -465,12 +493,8 @@ public:
         if(rhs.count() > lhs.count()) return true;
         else if(rhs.count() < lhs.count()) return false;
 
-        auto rhs_it = begin(rhs.List());
-        auto lhs_it = begin(lhs.List());
-
-        for(; rhs_it != end(rhs.List()); ++lhs_it, ++rhs_it)
-            if(auto rhs_bit = *rhs_it, lhs_bit = *lhs_it;
-                    rhs_bit != lhs_bit && rhs_bit < lhs_bit)
+        for(auto rhs_it = begin(rhs.List()), lhs_it = begin(lhs.List()); rhs_it != end(rhs.List()); ++lhs_it, ++rhs_it)
+            if(*rhs_it != *lhs_it && *rhs_it < *lhs_it)
                 return false;
 
         return true;
@@ -481,12 +505,8 @@ public:
         if(rhs.count() < lhs.count()) return true;
         else if(rhs.count() > lhs.count()) return false;
 
-        auto rhs_it = begin(rhs.List());
-        auto lhs_it = begin(lhs.List());
-
-        for(; rhs_it != end(rhs.List()); ++lhs_it, ++rhs_it)
-            if(auto rhs_bit = *rhs_it, lhs_bit = *lhs_it;
-                    rhs_bit != lhs_bit && rhs_bit > lhs_bit)
+        for(auto rhs_it = begin(rhs.List()), lhs_it = begin(lhs.List()); rhs_it != end(rhs.List()); ++lhs_it, ++rhs_it)
+            if(*rhs_it != *lhs_it && *rhs_it > *lhs_it)
                 return false;
 
         return true;
@@ -507,7 +527,7 @@ public:
         if(rhs.count() != lhs.count()) return false;
 
         for(auto rhs_it = begin(rhs.List()), lhs_it = begin(lhs.List()); rhs_it != end(rhs.List()); ++lhs_it, ++rhs_it)
-            if(auto rhs_bit = *rhs_it, lhs_bit = *lhs_it; rhs_bit != lhs_bit)
+            if(*rhs_it != *lhs_it)
                 return false;
 
         return true;
@@ -732,6 +752,10 @@ public:
     std::size_t count() const
     {
         return m_bitSet;
+    }
+    std::size_t Bit() const
+    {
+        return m_number.size();
     }
 
     bool isZero() const
