@@ -12,6 +12,8 @@
 #include <array>
 #include <algorithm>
 #include <cstdlib>
+#include <initializer_list>
+#include <execution>
 
 namespace
 {
@@ -61,7 +63,8 @@ constexpr bool is_allow_primary()
             std::is_same_v<Type, int32_t> ||
             std::is_same_v<Type, int64_t> ||
             std::is_same_v<Type, std::size_t> ||
-            std::is_same_v<Type, bool>;
+            std::is_same_v<Type, bool> ||
+            std::is_same_v<Type, char>;
 }
 
 template<class Container>
@@ -76,319 +79,93 @@ constexpr bool is_allow_container()
             (std::is_same_v<Container, std::array<ValueType, sizeof (Container)/sizeof(ValueType)>> && is_allow_primary<ValueType>() );
 }
 
-} // namespace
-
-namespace BigInt
+// TODO: for all operators: take ranges
+struct Subtraction
 {
-
-enum class BASE
-{
-    BINARY,
-    OCTAL,
-    DECIMAL,
-    HEXADECIMAL
-};
-
-enum class SIGN : bool
-{
-    POSITIVE,
-    NEGATIVE
-};
-
-class BigInt final
-{
-    std::deque<bool> m_number;
-    SIGN m_sign;
-    std::size_t m_bitSet;
-
-    template<class T>
-    std::deque<bool> toBinary(T&& number)
+    std::deque<bool> operator()(const BigInt& rhd, const BigInt& lhd)
     {
-        std::deque<bool> list_number;
-        if(number == 0){
-            list_number.push_back(0);
-            m_sign = SIGN::POSITIVE;
-            m_bitSet = 0;
-            return list_number;
-        }
-
-        if(number < 0) {
-            number = -number;
-            m_sign = SIGN::NEGATIVE;
-        }
-        else m_sign = SIGN::POSITIVE;
-
-        while(number > 0)
+        std::deque<bool> result;
+        std::size_t size = std::max(rhd.count(), lhd.count());
+        bool isLoan = false;
+        auto rhd_it = crbegin(rhd.List());
+        auto rhd_end_it = crend(rhd.List());
+        auto lhd_it = crbegin(lhd.List());
+        auto lhd_end_it = crend(lhd.List());
+        auto addRestElement = [&isLoan](std::deque<bool>& number,
+                                            std::deque<bool>::const_reverse_iterator restElementsIt,
+                                            std::deque<bool>::const_reverse_iterator endIt)
         {
-            bool value = static_cast<bool>(number % 2);
-            if(value == 1) ++m_bitSet;
-            list_number.push_front(value);
-            number >>= 1;
-        }
-
-        return list_number;
-    }
-
-    template<class T>
-    std::deque<bool> toBinary(T&& number, BASE base)
-    {
-        if(!number.empty())
-        {
-            if( *(number.begin()) > 0) m_sign = SIGN::POSITIVE;
-            else m_sign = SIGN::NEGATIVE;
-        }
-
-        std::deque<bool> list_number;
-
-        if(number.empty())
-        {
-            list_number.push_back(0);
-            m_sign = SIGN::POSITIVE;
-            m_bitSet = 0;
-            return list_number;
-        }
-
-        switch (base) {
-        case BASE::BINARY:
-            assert(number.size() > 1);
-
-            for(auto it = std::next(begin(number), 1); it != end(number); ++it)
+            if(isLoan)
             {
-                if(*it == 1) ++m_bitSet;
-                list_number.push_back(*it);
-            }
-            break;
-        case BASE::OCTAL:
-            break;
-        case BASE::DECIMAL:
-            // TODO: impl divmod num on 2 and add
-            // https://godbolt.org/z/xvYcG6
-            auto divMod = [](T&& number)
-            {
-                int rem = 0;
-                int dvnd;
-                int quot;
-                for(auto it = begin(number); it != end(number); ++it){
-                    dvnd = (rem * 10) + *it;
-                    rem = dvnd % 2; // optimaze dvnd & 1
-                    quot = dvnd / 2;
-                    *it = quot;
-                }
-
-                return static_cast<bool>(rem);
-            };
-
-            std::deque<bool> num;
-            while(!number.empty())
-                num.push_back( divMod(number) );
-
-            break;
-        case BASE::HEXADECIMAL:
-            break;
-        default:
-            break;
-        }
-
-        return list_number;
-    }
-
-    void removeZeros()
-    {
-        while(true)
-        {
-            auto it = begin(m_number);
-            if(m_number.size() == 1 && *it == 0) break;
-            if(*it == 0) m_number.pop_back();
-            else break;
-        }
-    }
-
-    struct Minus
-    {
-        std::deque<bool> operator()(const BigInt& rhd, const BigInt& lhd)
-        {
-            std::deque<bool> result;
-            std::size_t size = std::max(rhd.count(), lhd.count());
-            bool isLoan = false;
-            auto rhd_it = crbegin(rhd.List());
-            auto rhd_end_it = crend(rhd.List());
-            auto lhd_it = crbegin(lhd.List());
-            auto lhd_end_it = crend(lhd.List());
-            auto addRestElement = [&isLoan](std::deque<bool>& number,
-                                                std::deque<bool>::const_reverse_iterator restElementsIt,
-                                                std::deque<bool>::const_reverse_iterator endIt)
-            {
-                if(isLoan)
+                for(; restElementsIt != endIt; ++restElementsIt)
                 {
-                    for(; restElementsIt != endIt; ++restElementsIt)
+                    if(*restElementsIt == 1)
                     {
-                        if(*restElementsIt == 1)
-                        {
-                            number.push_front(0);
-                            ++restElementsIt;
-                            isLoan = false;
-                            break;
-                        }
-
-                        number.push_front(1);
-                    }
-                }
-
-                for(;restElementsIt != endIt; ++restElementsIt)
-                    number.push_front(*restElementsIt);
-
-                assert(restElementsIt == endIt);
-            };
-
-            for(size_t i = size; i >= 0; --i, ++rhd_it, ++lhd_it)
-            {
-                if(lhd_it == lhd_end_it)
-                {
-                    addRestElement(result, rhd_it, rhd_end_it);
-                    break;
-                }
-
-                bool bit = *rhd_it;
-
-                if(bit > *lhd_it) // 1 0
-                {
-                    if(isLoan) result.push_front(0);
-                    else
-                    {
-                        result.push_front(1);
+                        number.push_front(0);
+                        ++restElementsIt;
                         isLoan = false;
+                        break;
                     }
 
-                }
-                else if(bit == 1 && bit == *lhd_it) // 1 1
-                {
-                    isLoan = false;
-                    result.push_front(0);
-                }
-                else if( bit == *lhd_it) // 0 0
-                {
-                    if(isLoan) result.push_front(1);
-                    else result.push_front(0);
-                }
-                else // 0 1
-                {
-                    if(!isLoan)
-                    {
-                        result.push_front(1);
-                        isLoan = true;
-                    }
-                    else
-                        result.push_front(0);
+                    number.push_front(1);
                 }
             }
 
-            return result;
-        }
-    };
+            for(;restElementsIt != endIt; ++restElementsIt)
+                number.push_front(*restElementsIt);
 
-    struct DivMod
-    {
-        std::tuple< BigInt, BigInt > operator()(const BigInt& dividend, const BigInt& divisor)
+            assert(restElementsIt == endIt);
+        };
+
+        for(size_t i = size; i >= 0; --i, ++rhd_it, ++lhd_it)
         {
-            BigInt tmp;
-            BigInt result;
-            BigInt unit(1);
-            while(dividend >= divisor)
+            if(lhd_it == lhd_end_it)
             {
-                size_t diff = dividend.Bit() - divisor.Bit();
+                addRestElement(result, rhd_it, rhd_end_it);
+                break;
+            }
 
-                // TODO: test with offset with 1
-                if( compare(dividend.List().cbegin(), divisor.List().cbegin(), divisor.List().cend()) )
-                {
-                    tmp <<= diff;
-                }
+            bool bit = *rhd_it;
+
+            if(bit > *lhd_it) // 1 0
+            {
+                if(isLoan) result.push_front(0);
                 else
                 {
-                    --diff;
-                    tmp <<= diff;
+                    result.push_front(1);
+                    isLoan = false;
                 }
 
-//                dividend -= tmp;
-                result = result + (unit<<diff); // optimase unit<<diff ??
             }
-
-            return std::make_tuple(result, dividend);
+            else if(bit == 1 && bit == *lhd_it) // 1 1
+            {
+                isLoan = false;
+                result.push_front(0);
+            }
+            else if( bit == *lhd_it) // 0 0
+            {
+                if(isLoan) result.push_front(1);
+                else result.push_front(0);
+            }
+            else // 0 1
+            {
+                if(!isLoan)
+                {
+                    result.push_front(1);
+                    isLoan = true;
+                }
+                else
+                    result.push_front(0);
+            }
         }
 
-    private:
-        bool compare(std::deque<bool>::const_iterator it, std::deque<bool>::const_iterator start, std::deque<bool>::const_iterator end)
-        {
-            for(; start != end; ++it, ++start, ++end)
-                if(*it != *start && *it > *start)
-                    return true;
-
-            return false;
-        }
-    };
-
-    void offsetByUnits()
-    {
-        m_number.push_back(1);
+        return result;
     }
+} static subtraction;
 
-    // TODO: count bits
-    BigInt(const std::deque<bool>& number, SIGN sign, size_t bits = 0):
-        m_number{number},
-        m_sign{sign},
-        m_bitSet{bits}
-    {}
-
-public:
-
-    template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
-    BigInt(Type& value):
-        m_number{toBinary(value)}
-    {}
-
-    template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
-    BigInt(const Type& value):
-        m_number{toBinary(value)}
-    {}
-
-    template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
-    BigInt(Type&& value):
-        m_number{toBinary(value)}
-    {}
-
-    template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
-    BigInt(Type& value, BASE base):
-        m_number{toBinary(value, base)}
-    {}
-
-    template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
-    BigInt(const Type& value, BASE base):
-        m_number{toBinary(value, base)}
-    {}
-
-    template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
-    BigInt(Type&& value, BASE base):
-        m_number{toBinary(value, base)}
-    {}
-
-    BigInt():
-        m_number{0},
-        m_sign{SIGN::POSITIVE},
-        m_bitSet{0}
-    {}
-
-    void Print() const
-    {
-        for(const auto& bit : m_number)
-            std::cout << bit << std::endl;
-    }
-
-    template<class T, class = typename std::enable_if_t< is_allow_primary<T>()> >
-    friend BigInt operator+(const BigInt& number, T other)
-    {
-        return number + BigInt(other);
-    }
-
-    friend BigInt operator+(const BigInt& rhd, const BigInt& lhd)
+struct Addition
+{
+    std::deque<bool> operator()(const BigInt& rhd, const BigInt& lhd)
     {
         std::deque<bool> result;
         std::size_t size = std::max(rhd.count(), lhd.count());
@@ -454,7 +231,438 @@ public:
                 isTransfer ? result.push_front(0) : result.push_front(1);
         }
 
-        return BigInt(result, SIGN::POSITIVE);
+        return result;
+    }
+} static addition;
+
+struct Division
+{
+    /*
+    if(compare) add 1
+    if(compare: dividend == divisor) find first dividend bit which is greater then 0 and before fill 0 after 1
+    else find first dividend bit which is greater then 0 and before fill 0 after 1
+
+    count 1 example:
+    1111 -> 1000 + 3 -> count all 1(n) and it is pow(2, n) + n-1
+
+    */
+    std::deque<bool> operator()(const BigInt& dividend, const BigInt& divisor, bool isMode = false)
+    {
+        BigInt tmp;
+        BigInt result;
+        BigInt unit(1);
+        BigInt dividend_ = dividend;
+        std::deque<bool> a;
+        while(dividend_ >= divisor)
+        {
+            size_t diff = dividend_.Bit() - divisor.Bit();
+
+            // TODO: test with offset with 1 -> ok for operator %
+            if( compare(dividend_.List().cbegin(), divisor.List().cbegin(), divisor.List().cend()) )
+            {
+                tmp = divisor << diff;
+            }
+            else
+            {
+                --diff;
+                tmp = divisor << diff;
+            }
+
+            if(!isMode)
+                dividend_ = minus(dividend_.List(), tmp.List());
+            result = plus(result.List(), (unit<<diff).List()); // optimase unit<<diff ??
+        }
+
+        for(auto v : result.List()) std::cout << v << std::endl;
+
+        return a;
+    }
+    /*
+        1011111
+        101
+
+        1011111
+        1010000 -> 16
+
+        1111
+        1010
+        101 -> 2
+
+        110
+        101 -> 1
+        000
+
+        res = 19
+
+        #######
+        1100001
+        1011111
+
+
+
+    */
+
+private:
+    bool compare(std::deque<bool>::const_iterator it, std::deque<bool>::const_iterator start, std::deque<bool>::const_iterator end)
+    {
+        for(; start != end; ++it, ++start, ++end)
+            if(*it != *start && *it > *start)
+                return true;
+
+        return false;
+    }
+
+//    BigInt offsetByUnits(std::deque<bool>& number, size_t offset)
+//    {
+//        for(size_t i {0}; i < offset; ++i)
+//            number.push_back(1);
+//        return BigInt(number, SIGN::POSITIVE);
+//    }
+
+    BigInt minus(std::deque<bool> a, std::deque<bool> b){
+        std::string s1;
+        std::string s2;
+
+        for(auto v : a) s1 += std::to_string(v);
+        for(auto v : b) s2 += std::to_string(v);
+
+        return BigInt( std::strtoull(s1.c_str(), NULL, 2) - std::strtoull(s2.c_str(), NULL, 2)  );
+    };
+
+    BigInt plus(std::deque<bool> a, std::deque<bool> b){
+        std::string s1;
+        std::string s2;
+
+        for(auto v : a) s1 += std::to_string(v);
+        for(auto v : b) s2 += std::to_string(v);
+
+        return BigInt( std::strtoull(s1.c_str(), NULL, 2) + std::strtoull(s2.c_str(), NULL, 2)  );
+    };
+} static division;
+
+struct Multiplication
+{
+    std::deque<bool> operator()(const BigInt& rhs, const BigInt& lhs)
+    {
+        BigInt res;
+        BigInt tmp = lhs;
+        size_t offset = 0;
+        std::deque<bool> a;
+        auto handleZero = [&]()
+        {
+            if(offset >= 1)
+            {
+                std::cout << "distance " << offset << std::endl;
+//                res = plus(res.List(), tmp.List());
+                res = res - tmp;
+                if(offset > 1) res = res - lhs;//res = minus(res.List(), lhs.List());
+                offset = 0;
+            }
+        };
+
+        for(auto it = crbegin(rhs.List()); it != crend(rhs.List()); ++it)
+        {
+            if(*it == 0) tmp <<= 1;
+            if(*it == 1)
+            {
+                ++offset;
+                if( *std::next(it, 1) == 0 || std::next(it, 1) == crend(rhs.List()) ) handleZero();
+                tmp <<= 1;
+            }
+        }
+
+        return a;
+    }
+private:
+//    BigInt minus(std::deque<bool> a, std::deque<bool> b){
+//        std::string s1;
+//        std::string s2;
+
+//        for(auto v : a) s1 += std::to_string(v);
+//        for(auto v : b) s2 += std::to_string(v);
+
+//        return BigInt( std::strtoull(s1.c_str(), NULL, 2) - std::strtoull(s2.c_str(), NULL, 2)  );
+//    };
+
+//    BigInt plus(std::deque<bool> a, std::deque<bool> b){
+//        std::string s1;
+//        std::string s2;
+
+//        for(auto v : a) s1 += std::to_string(v);
+//        for(auto v : b) s2 += std::to_string(v);
+
+//        return BigInt( std::strtoull(s1.c_str(), NULL, 2) + std::strtoull(s2.c_str(), NULL, 2)  );
+//    };
+} static multiplication;
+
+} // namespace
+
+namespace BigInt
+{
+
+enum class BASE
+{
+    BINARY,
+    OCTAL,
+    DECIMAL,
+    HEXADECIMAL
+};
+
+enum class SIGN : bool
+{
+    POSITIVE,
+    NEGATIVE
+};
+
+class BigInt final
+{
+    std::deque<bool> m_number;
+    SIGN m_sign;
+    std::size_t m_bitSet;
+
+    template<class T>
+    std::deque<bool> toBinary(T&& number)
+    {
+        std::deque<bool> list_number;
+        if(number == 0){
+            list_number.push_back(0);
+            m_sign = SIGN::POSITIVE;
+            m_bitSet = 0;
+            return list_number;
+        }
+
+        if(number < 0) {
+            number = -number;
+            m_sign = SIGN::NEGATIVE;
+        }
+        else m_sign = SIGN::POSITIVE;
+
+        while(number > 0)
+        {
+            bool value = static_cast<bool>(number % 2);
+            if(value == 1) ++m_bitSet;
+            list_number.push_front(value);
+            number >>= 1;
+        }
+
+        return list_number;
+    }
+
+    template<class T>
+    std::deque<bool> toBinary(T&& number, BASE base)
+    {
+        if(!number.empty())
+        {
+            if( *(number.begin()) > 0) m_sign = SIGN::POSITIVE;
+            else m_sign = SIGN::NEGATIVE;
+        }
+
+        std::deque<bool> list_number;
+
+        // TODO: handle initializer_list
+        if(number.empty())
+        {
+            list_number.push_back(0);
+            m_sign = SIGN::POSITIVE;
+            m_bitSet = 0;
+            return list_number;
+        }
+
+        switch (base) {
+        case BASE::BINARY:
+            assert(number.size() > 1);
+
+            for(auto it = std::next(begin(number), 1); it != end(number); ++it)
+            {
+                if(*it == 1) ++m_bitSet;
+                list_number.push_back(*it);
+            }
+            break;
+        case BASE::OCTAL:
+            break;
+        case BASE::DECIMAL:
+            // TODO: impl divmod num on 2 and add
+            // https://godbolt.org/z/xvYcG6
+//            auto divMod = [](T&& number)
+//            {
+//                int rem = 0;
+//                int dvnd;
+//                int quot;
+//                for(auto it = begin(number); it != end(number); ++it){
+//                    dvnd = (rem * 10) + *it;
+//                    rem = dvnd % 2; // optimaze dvnd & 1
+//                    quot = dvnd / 2;
+//                    *it = quot;
+//                }
+
+//                return static_cast<bool>(rem);
+//            };
+
+//            std::deque<bool> num;
+//            while(!number.empty())
+//                num.push_back( divMod(number) );
+
+            break;
+        case BASE::HEXADECIMAL:
+            break;
+        default:
+            break;
+        }
+
+        return list_number;
+    }
+
+    void removeZeros()
+    {
+        while(true)
+        {
+            auto it = begin(m_number);
+            if(m_number.size() == 1 && *it == 0) break;
+            if(*it == 0) m_number.pop_back();
+            else break;
+        }
+    }
+
+    template<class T>
+    bool verification(T&& number, BASE base)
+    {
+        using constValueTypeReference =
+        std::conditional_t<
+            std::is_same_v<remove_all_t<T>, std::string>,
+            const char&,
+            const typename T::value_type&
+        >;
+
+        typename T::iterator validate;
+        switch(base) // TODO: avoid magic numbers
+        {
+        case BASE::BINARY:
+            validate = std::find_if(std::execution::par_unseq, number.begin(), number.end(), [](constValueTypeReference value)
+            { return value != 0 || value != 1 || value != '0' || value != '1';});
+            return validate == number.end() ? true : false;
+
+        case BASE::OCTAL:
+            validate = std::find_if(std::execution::par_unseq, number.begin(), number.end(), [](constValueTypeReference value)
+            { return value < 0 || value > 7 || value < '0' || value > '7'; });
+            return validate == number.end() ? true : false;
+
+        case BASE::DECIMAL:
+            validate = std::find_if(std::execution::par_unseq, number.begin(), number.end(), [](constValueTypeReference value)
+            { return value < 0 || value > 10 || value < '0' || value > '9'; });
+            return validate == number.end() ? true : false;
+
+        case BASE::HEXADECIMAL:
+            validate = std::find_if(std::execution::par_unseq, number.begin(), number.end(), [](constValueTypeReference value)
+            { return value < 0 || value > 15 || value < '0' || std::tolower(value) > 'f'; });
+            return validate == number.end() ? true : false;
+
+        default:
+            return false;
+        }
+    }
+
+    template<class T>
+    T converter(BASE base)
+    {
+        T result;
+        switch(base)
+        {
+        case BASE::BINARY:
+            std::copy(m_number.begin(), m_number.end(), std::back_inserter(result));
+            break;
+        default:
+            return result;
+        }
+    }
+
+    // TODO: count bits
+    BigInt(const std::deque<bool>& number, SIGN sign, size_t bits = 0):
+        m_number{number},
+        m_sign{sign},
+        m_bitSet{bits}
+    {}
+
+public:
+
+    template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
+    BigInt(Type& value):
+        m_number{toBinary(value)}
+    {}
+
+    template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
+    BigInt(const Type& value):
+        m_number{toBinary(value)}
+    {}
+
+    template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
+    BigInt(Type&& value):
+        m_number{toBinary(value)}
+    {}
+
+    template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
+    BigInt(Type& value, BASE base):
+        m_number{toBinary(value, base)}
+    {}
+
+    template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
+    BigInt(const Type& value, BASE base):
+        m_number{toBinary(value, base)}
+    {}
+
+    template<typename Type, class = typename std::enable_if_t<is_allow_container<Type>()>>
+    BigInt(Type&& value, BASE base):
+        m_number{toBinary(value, base)}
+    {}
+
+    template<typename Type, class = typename std::enable_if_t< is_allow_primary<Type>() > >
+    BigInt(Type* value, size_t size, BASE base):
+        m_number{toBinary(value, base)} // TODO
+    {}
+
+    template<typename Type, class = typename std::enable_if_t<is_allow_primary<Type>()>>
+    BigInt(const std::initializer_list<Type>& value, BASE base):
+        m_number{toBinary(value, base)}
+    {}
+
+    template<typename Type, class = typename std::enable_if_t<is_allow_primary<Type>()>>
+    BigInt(std::initializer_list<Type>&& value, BASE base):
+        m_number{toBinary(value, base)}
+    {}
+
+    BigInt():
+        m_number{0},
+        m_sign{SIGN::POSITIVE},
+        m_bitSet{0}
+    {}
+
+    void Print() const
+    {
+        for(const auto& bit : m_number)
+            std::cout << bit << std::endl;
+    }
+
+    template<class T, class = typename std::enable_if_t< is_allow_primary<T>()> >
+    friend BigInt operator+(const BigInt& number, T other)
+    {
+        return number + BigInt(other);
+    }
+
+    friend BigInt operator+(const BigInt& lhs, const BigInt& rhs)
+    {
+        if(lhs.isNegative())
+        {
+            if(rhs.isPositiove())
+                return rhs - lhs;
+
+            return BigInt(addition(lhs, rhs), SIGN::POSITIVE);
+        }
+        else
+        {
+            if(lhs.isPositiove())
+                return lhs - rhs;
+
+            return BigInt(addition(lhs, rhs), SIGN::POSITIVE);
+        }
     }
 
     template<class T, class = typename std::enable_if_t< is_allow_primary<T>()> >
@@ -465,23 +673,18 @@ public:
 
     friend BigInt operator-(const BigInt& rhs, const BigInt& lhs)
     {
-        Minus m;
+        if(rhs.isNegative() && lhs.isNegative())
+            return BigInt(addition(rhs, lhs), SIGN::POSITIVE);
         if(rhs < lhs)
         {
-            auto result =  m(lhs, rhs);
+            auto result =  subtraction(lhs, rhs);
             return BigInt(result, SIGN::NEGATIVE);
         }
         else
         {
-            auto result =  m(rhs, lhs);
+            auto result =  subtraction(rhs, lhs);
             return BigInt(result, SIGN::POSITIVE);
         }
-
-    }
-
-    BigInt operator-=(const BigInt& other)
-    {
-        return operator-(*this, other);
     }
 
     friend BigInt operator*(const BigInt& rhs, const BigInt& lhs)
@@ -534,6 +737,11 @@ public:
         return res;
     }
 
+    friend BigInt operator/(const BigInt& rhs, const BigInt& lhs)
+    {
+        return division(rhs, lhs);
+    }
+
     friend bool operator >(const BigInt& rhs, const BigInt& lhs)
     {
         if(rhs.count() > lhs.count()) return true;
@@ -560,7 +768,7 @@ public:
 
     friend bool operator >=(const BigInt& rhs, const BigInt& lhs)
     {
-        return !(operator<(rhs, lhs));
+        return operator<(lhs, rhs);
     }
 
     friend bool operator <=(const BigInt& rhs, const BigInt& lhs)
@@ -590,7 +798,7 @@ public:
         for(size_t i {0}; i < _shifts; ++i)
             newNumber.push_back(0);
 
-        return BigInt(newNumber, BASE::BINARY);
+        return BigInt(newNumber, SIGN::POSITIVE);
     }
 
     BigInt& operator <<=(size_t _shifts)
@@ -617,6 +825,11 @@ public:
         for(size_t i {0}; i < _shifts; ++i)
             m_number.pop_back();
         return *this;
+    }
+
+    BigInt operator-(const BigInt& number)
+    {
+        return BigInt(number.List(), number.isNegative() ? SIGN::POSITIVE : SIGN::NEGATIVE, number.count());
     }
 
     std::string Binary() const
@@ -785,10 +998,35 @@ public:
         return octal;
     }
 
+    // rename to Data
     const std::deque<bool>& List() const
     {
         return m_number;
     }
+
+    template<class T>
+    std::vector<T> Vector(BASE base) const
+    {
+        return converter<std::vector<T>>(base);
+    }
+
+    template<class T>
+    std::deque<T> Deque(BASE base) const
+    {
+        return converter<std::deque<T>>(base);
+    }
+
+    template<class T>
+    std::forward_list<T> ForwarList(BASE base) const
+    {
+        return converter<std::forward_list<T>>(base);
+    }
+
+//    template<class T>
+//    std::list<T> List(BASE base) const
+//    {
+//        return converter<std::list<T>>(base);
+//    }
 
     bool is2Pow() const
     {
@@ -799,6 +1037,7 @@ public:
     {
         return m_bitSet;
     }
+
     std::size_t Bit() const
     {
         return m_number.size();
@@ -829,11 +1068,23 @@ public:
         return !isPositiove();
     }
 
-    void ChangeSign()
-    {
-        m_sign = m_sign == SIGN::POSITIVE ? SIGN::NEGATIVE : SIGN::POSITIVE;
-    }
-
 };
 
 } // namespace BigInt
+
+//    bool compare(std::deque<bool>::const_iterator it, std::deque<bool>::const_iterator start, std::deque<bool>::const_iterator end)
+//    {
+//        for(; start != end; ++it, ++start, ++end)
+//            if(*it != *start && *it > *start)
+//                return true;
+
+//        return false;
+//    }
+
+//    BigInt offsetByUnits(std::deque<bool>& number, size_t offset)
+//    {
+//        for(size_t i {0}; i < offset; ++i)
+//            number.push_back(1);
+//        return BigInt(number, SIGN::POSITIVE);
+//    }
+
