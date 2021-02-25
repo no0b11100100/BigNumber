@@ -29,6 +29,13 @@ void rightShift(BinaryData& data)
     data.pop_front();
 }
 
+template<class Iterator>
+constexpr void checkIteratorTag()
+{
+    static_assert (std::is_same_v<typename std::iterator_traits<Iterator>::iterator_category,
+                std::random_access_iterator_tag>, "Iterator should be random access iterator");
+}
+
 struct Less
 {
     bool operator()(const BinaryData& lhs, const BinaryData& rhs)
@@ -43,6 +50,7 @@ struct Less
     template<class Iterator>
     bool operator()(Iterator lhs_begin, Iterator lhs_end, const BinaryData& rhs)
     {
+        checkIteratorTag<Iterator>();
         size_t dist1 = std::distance(lhs_begin, lhs_end);
         size_t dist2 = rhs.size();
         if( dist1 > dist2 ) return false;
@@ -67,6 +75,7 @@ struct Greater
     template<class Iterator>
     bool operator()(Iterator lhs_begin, Iterator lhs_end, const BinaryData& rhs)
     {
+        checkIteratorTag<Iterator>();
         size_t dist1 = std::distance(lhs_begin, lhs_end);
         size_t dist2 = rhs.size();
         if( dist2 > dist1 ) return false;
@@ -89,6 +98,7 @@ struct Equal
     template<class Iterator>
     bool operator()(Iterator lhs_begin, Iterator lhs_end, const BinaryData& rhs)
     {
+        checkIteratorTag<Iterator>();
         size_t dist1 = std::distance(lhs_begin, lhs_end);
         size_t dist2 = rhs.size();
         if( dist1 != dist2 ) return false;
