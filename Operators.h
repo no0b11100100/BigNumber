@@ -31,7 +31,7 @@ void rightShift(BinaryData& data)
 
 struct Less
 {
-    bool operator()(BinaryData lhs, BinaryData rhs)
+    bool operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
         if( lhs.size() > rhs.size() ) return false;
         if( lhs.size() < rhs.size() ) return true;
@@ -41,7 +41,7 @@ struct Less
     }
 
     template<class Iterator>
-    bool operator()(Iterator lhs_begin, Iterator lhs_end, BinaryData rhs)
+    bool operator()(Iterator lhs_begin, Iterator lhs_end, const BinaryData& rhs)
     {
         size_t dist1 = std::distance(lhs_begin, lhs_end);
         size_t dist2 = rhs.size();
@@ -55,7 +55,7 @@ struct Less
 
 struct Greater
 {
-    bool operator()(BinaryData lhs, BinaryData rhs)
+    bool operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
         if( rhs.size() > lhs.size() ) return false;
         if( rhs.size() < lhs.size() ) return true;
@@ -65,7 +65,7 @@ struct Greater
     }
 
     template<class Iterator>
-    bool operator()(Iterator lhs_begin, Iterator lhs_end, BinaryData rhs)
+    bool operator()(Iterator lhs_begin, Iterator lhs_end, const BinaryData& rhs)
     {
         size_t dist1 = std::distance(lhs_begin, lhs_end);
         size_t dist2 = rhs.size();
@@ -79,7 +79,7 @@ struct Greater
 
 struct Equal
 {
-    bool operator()(BinaryData lhs, BinaryData rhs)
+    bool operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
         if( lhs.size() != rhs.size() ) return false;
         assert(lhs.size() == rhs.size());
@@ -87,7 +87,7 @@ struct Equal
     }
 
     template<class Iterator>
-    bool operator()(Iterator lhs_begin, Iterator lhs_end, BinaryData rhs)
+    bool operator()(Iterator lhs_begin, Iterator lhs_end, const BinaryData& rhs)
     {
         size_t dist1 = std::distance(lhs_begin, lhs_end);
         size_t dist2 = rhs.size();
@@ -99,22 +99,175 @@ struct Equal
 
 struct Subtraction
 {
-    BinaryData operator()(BinaryData lhs, BinaryData rhs)
+    BinaryData operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
-        BinaryData result;
-
+//        assert(greater(lhs, rhs));
+        auto [result, it] = proccess(rhs.crbegin(), lhs.crbegin(), rhs.crend());
+        addRest(result, it, lhs.crend());
         return result;
     }
+
+private:
+    bool isLoan = false;
+
+    template<class Iterator>
+    void addRest(BinaryData& number, Iterator startIt, Iterator endIt)
+    {
+        if(isLoan)
+        {
+            for(; startIt != endIt; ++startIt)
+            {
+                if(*startIt == 1)
+                {
+                    number.push_front(0);
+                    ++startIt;
+                    isLoan = false;
+                    break;
+                }
+
+                number.push_front(1);
+            }
+        }
+
+        for(;startIt != endIt; ++startIt)
+            number.push_front(*startIt);
+
+        assert(startIt == endIt);
+        removeInsignificantBits(number);
+    }
+
+    template<class Iterator>
+    std::pair<BinaryData, Iterator> proccess(Iterator lhsIt, Iterator rhsIt, Iterator endIt)
+    {
+        BinaryData result;
+        for(; lhsIt != endIt; ++lhsIt, ++rhsIt)
+        {
+            if(*lhsIt > *rhsIt) // 1 0
+            {
+                if(isLoan) result.push_front(0);
+                else
+                {
+                    result.push_front(1);
+                    isLoan = false;
+                }
+
+            }
+            else if(*lhsIt == 1 && *rhsIt == 1) // 1 1
+            {
+                isLoan = false;
+                result.push_front(0);
+            }
+            else if(*lhsIt == *rhsIt) // 0 0
+            {
+                if(isLoan) result.push_front(1);
+                else result.push_front(0);
+            }
+            else // 0 1
+            {
+                if(!isLoan)
+                {
+                    result.push_front(1);
+                    isLoan = true;
+                }
+                else
+                    result.push_front(0);
+            }
+        }
+        return {result, rhsIt};
+    }
+
+    void removeInsignificantBits(BinaryData& number)
+    {
+        while(true)
+        {
+            auto it = begin(number);
+            if(it == number.end()) break;
+            if(std::next(it, 1) == number.end() && *it == 0) break;
+            if(*it == 0) number.pop_back();
+        }
+    }
+
 } subtraction;
 
 struct Addition
 {
-    BinaryData operator()(BinaryData lhs, BinaryData rhs)
+    BinaryData operator()(const BinaryData& lhs, const BinaryData& rhs)
+    {
+        if(lhs.size() < rhs.size())
+        {
+            auto [result, it] = proccess(lhs.crbegin(), rhs.crbegin(), lhs.crend());
+            addRest(result, it, rhs.crend());
+            return result;
+        } else if (lhs.size() > rhs.size())
+        {
+            auto [result, it] = proccess(lhs.crbegin(), rhs.crbegin(), rhs.crend());
+            addRest(result, it, lhs.crend());
+            return result;
+        }
+        else
+        {
+            auto [result, it] = proccess(lhs.crbegin(), rhs.crbegin(), lhs.crend());
+            addRest(result, it, rhs.crend());
+            return result;
+        }
+    }
+
+private:
+    bool isTransfer = false;
+
+    // TODO: count 1
+    template<class Iterator>
+    void addRest(BinaryData& number, Iterator startIt, Iterator endIt)
+    {
+        if(isTransfer)
+        {
+            for(; startIt != endIt; ++startIt)
+            {
+                if(*startIt == 0)
+                {
+                    number.push_front(1);
+                    isTransfer = false;
+                    ++startIt;
+                    break;
+                }
+
+                number.push_front(0);
+            }
+        }
+
+        for(;startIt != endIt; ++startIt)
+            number.push_front(*startIt);
+
+        if(isTransfer) number.push_front(1);
+    }
+
+    // TODO: count 1
+    template<class Iterator>
+    std::pair<BinaryData, Iterator> proccess(Iterator lhsIt, Iterator rhsIt, Iterator endIt)
     {
         BinaryData result;
+        for(; lhsIt != endIt; ++rhsIt, ++lhsIt)
+        {
+            if(*lhsIt == 1 && *rhsIt == 1)
+            {
+                if(isTransfer)
+                    result.push_front(1);
+                else
+                {
+                    isTransfer = true;
+                    result.push_front(0);
+                }
+            } else if(*lhsIt == 0 && *rhsIt == 0)
+            {
+                isTransfer ? result.push_front(1) : result.push_front(0);
+                isTransfer = false;
+            } else if(*lhsIt != *rhsIt)
+                isTransfer ? result.push_front(0) : result.push_front(1);
+        }
 
-        return result;
+        return {result, rhsIt};
     }
+
 } addition;
 
 struct Division
@@ -215,11 +368,55 @@ private:
 
 } division;
 
+struct Module
+{
+     BinaryData operator()(const BinaryData& lhs, const BinaryData& rhs)
+     {
+         BinaryData result;
+
+         return result;
+     }
+
+} modulo;
+
 struct Multiplication
 {
-    BinaryData operator()(BinaryData lhs, BinaryData rhs)
+    BinaryData operator()(const BinaryData& lhs, const BinaryData& rhs)
+    {
+        return proccess(lhs.crbegin(), lhs.crend(), rhs);
+    }
+
+private:
+    size_t offset = 0;
+
+    void handleNextZero(BinaryData& result, BinaryData& tmp, const BinaryData& other)
+    {
+        if(offset > 1)
+        {
+             result = addition(result, tmp);
+            if(offset > 1) result = subtraction(result, other);
+            offset = 0;
+        }
+    }
+
+    template<class Iterator>
+    BinaryData proccess(Iterator startIt, Iterator endIt, const BinaryData& other)
     {
         BinaryData result;
+        BinaryData tmp;
+        std::copy(std::execution::par_unseq, startIt, endIt, std::back_inserter(tmp));
+        for(; startIt != endIt; ++startIt)
+        {
+            if(*startIt == 0) leftShift(tmp, 0);
+            if(*startIt == 1)
+            {
+                ++offset;
+                if( *std::next(startIt, 1) == 0 || std::next(startIt, 1) == endIt )
+                    handleNextZero(result, tmp, other);
+
+                leftShift(tmp, 0);
+            }
+        }
 
         return result;
     }

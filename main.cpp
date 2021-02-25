@@ -27,10 +27,10 @@ public:
         m_time = std::chrono::duration_cast<TimeMeasurement>(endTime - startTime).count();
     }
 
-    double Time() const { return m_time; }
+    size_t Time() const { return m_time; }
 
 private:
-    double m_time;
+    size_t m_time;
 };
 
 } // Timer
