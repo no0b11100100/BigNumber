@@ -43,8 +43,7 @@ struct Less
         if( lhs.size() > rhs.size() ) return false;
         if( lhs.size() < rhs.size() ) return true;
         assert(lhs.size() == rhs.size());
-        auto [lhs_it, rhs_it] = std::mismatch(std::execution::par_unseq, lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
-        return rhs_it == rhs.end();
+        return std::lexicographical_compare(std::execution::par_unseq, lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
     }
 
     template<class Iterator>
@@ -56,8 +55,19 @@ struct Less
         if( dist1 > dist2 ) return false;
         if( dist1 < dist2 ) return true;
         assert(dist1 == dist2);
-        auto [lhs_it, rhs_it] = std::mismatch(std::execution::par_unseq, lhs_begin, lhs_end, rhs.begin(), rhs.end());
-        return rhs_it == rhs.end();
+        return std::lexicographical_compare(std::execution::par_unseq, lhs_begin, lhs_end, rhs.begin(), rhs.end());
+    }
+
+    template<class Iterator>
+    bool operator()(const BinaryData& rhs, Iterator lhs_begin, Iterator lhs_end)
+    {
+        checkIteratorTag<Iterator>();
+        size_t dist1 = std::distance(lhs_begin, lhs_end);
+        size_t dist2 = rhs.size();
+        if( dist1 > dist2 ) return false;
+        if( dist1 < dist2 ) return true;
+        assert(dist1 == dist2);
+        return std::lexicographical_compare(std::execution::par_unseq, rhs.begin(), rhs.end(), lhs_begin, lhs_end);
     }
 } less;
 
@@ -65,24 +75,13 @@ struct Greater
 {
     bool operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
-        if( rhs.size() > lhs.size() ) return false;
-        if( rhs.size() < lhs.size() ) return true;
-        assert(lhs.size() == rhs.size());
-        auto [lhs_it, rhs_it] = std::mismatch(std::execution::par_unseq, lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
-        return rhs_it == rhs.end();
+        return less(rhs, lhs);
     }
 
     template<class Iterator>
     bool operator()(Iterator lhs_begin, Iterator lhs_end, const BinaryData& rhs)
     {
-        checkIteratorTag<Iterator>();
-        size_t dist1 = std::distance(lhs_begin, lhs_end);
-        size_t dist2 = rhs.size();
-        if( dist2 > dist1 ) return false;
-        if( dist2 < dist1 ) return true;
-        assert(dist1 == dist2);
-        auto [lhs_it, rhs_it] = std::mismatch(std::execution::par_unseq, lhs_begin, lhs_end, rhs.begin(), rhs.end());
-        return rhs_it == rhs.end();
+        return less(rhs, lhs_begin, lhs_end);
     }
 } greater;
 
@@ -112,7 +111,7 @@ struct Subtraction
     BinaryData operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
 //        assert(greater(lhs, rhs));
-        auto [result, it] = proccess(rhs.crbegin(), lhs.crbegin(), rhs.crend());
+        auto [result, it] = proccess(rhs.crbegin(), rhs.crend(), lhs.crbegin());
         addRest(result, it, lhs.crend());
         return result;
     }
@@ -144,15 +143,16 @@ private:
 
         assert(startIt == endIt);
         removeInsignificantBits(number);
+        isLoan = false;
     }
 
     template<class Iterator>
-    std::pair<BinaryData, Iterator> proccess(Iterator lhsIt, Iterator rhsIt, Iterator endIt)
+    std::pair<BinaryData, Iterator> proccess(Iterator lhsIt, Iterator endIt, Iterator rhsIt)
     {
         BinaryData result;
         for(; lhsIt != endIt; ++lhsIt, ++rhsIt)
         {
-            if(*lhsIt > *rhsIt) // 1 0
+            if(*lhsIt < *rhsIt) // 1 0
             {
                 if(isLoan) result.push_front(0);
                 else
@@ -191,9 +191,8 @@ private:
         while(true)
         {
             auto it = begin(number);
-            if(it == number.end()) break;
-            if(std::next(it, 1) == number.end() && *it == 0) break;
-            if(*it == 0) number.pop_back();
+            if(*it == 1 || number.size() == 1) break;
+            if(*it == 0) number.pop_front();
         }
     }
 
@@ -205,18 +204,18 @@ struct Addition
     {
         if(lhs.size() < rhs.size())
         {
-            auto [result, it] = proccess(lhs.crbegin(), rhs.crbegin(), lhs.crend());
+            auto [result, it] = proccess(lhs.crbegin(), lhs.crend(), rhs.crbegin());
             addRest(result, it, rhs.crend());
             return result;
         } else if (lhs.size() > rhs.size())
         {
-            auto [result, it] = proccess(lhs.crbegin(), rhs.crbegin(), rhs.crend());
+            auto [result, it] = proccess(rhs.crbegin(), rhs.crend(), lhs.crbegin());
             addRest(result, it, lhs.crend());
             return result;
         }
         else
         {
-            auto [result, it] = proccess(lhs.crbegin(), rhs.crbegin(), lhs.crend());
+            auto [result, it] = proccess(lhs.crbegin(), lhs.crend(), rhs.crbegin());
             addRest(result, it, rhs.crend());
             return result;
         }
@@ -248,12 +247,16 @@ private:
         for(;startIt != endIt; ++startIt)
             number.push_front(*startIt);
 
-        if(isTransfer) number.push_front(1);
+        if(isTransfer)
+        {
+            number.push_front(1);
+            isTransfer = false;
+        }
     }
 
     // TODO: count 1
     template<class Iterator>
-    std::pair<BinaryData, Iterator> proccess(Iterator lhsIt, Iterator rhsIt, Iterator endIt)
+    std::pair<BinaryData, Iterator> proccess(Iterator lhsIt, Iterator endIt, Iterator rhsIt)
     {
         BinaryData result;
         for(; lhsIt != endIt; ++rhsIt, ++lhsIt)
