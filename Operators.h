@@ -34,7 +34,7 @@ void rightShift(BinaryData& data)
 }
 
 template<class Iterator>
-constexpr void checkIteratorTag()
+constexpr void isRandomAccessIterator()
 {
     static_assert (std::is_same_v<typename std::iterator_traits<Iterator>::iterator_category,
                 std::random_access_iterator_tag>, "Iterator should be random access iterator");
@@ -44,19 +44,30 @@ struct Less
 {
     bool operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
-        return std::lexicographical_compare(std::execution::par_unseq, lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+        return lhs.size() < rhs.size() ? true :
+               lhs.size() > rhs.size() ? false :
+               // lhs.size() == rhs.size()
+               std::lexicographical_compare(std::execution::par_unseq, lhs.cbegin(), lhs.cend(), rhs.cbegin(), rhs.cend());
     }
 
     template<class Iterator>
     bool operator()(Iterator lhs_begin, Iterator lhs_end, const BinaryData& rhs)
     {
-        return std::lexicographical_compare(std::execution::par_unseq, lhs_begin, lhs_end, rhs.begin(), rhs.end());
+        isRandomAccessIterator<Iterator>();
+        if(size_t dist = std::distance(lhs_begin, lhs_end); dist < rhs.size()) return true;
+        else if(dist > rhs.size()) return false;
+        // dist == rhs.size()
+        return std::lexicographical_compare(std::execution::par_unseq, lhs_begin, lhs_end, rhs.cbegin(), rhs.cend());
     }
 
     template<class Iterator>
     bool operator()(const BinaryData& rhs, Iterator lhs_begin, Iterator lhs_end)
     {
-        return std::lexicographical_compare(std::execution::par_unseq, rhs.begin(), rhs.end(), lhs_begin, lhs_end);
+        isRandomAccessIterator<Iterator>();
+        if(size_t dist = std::distance(lhs_begin, lhs_end); dist < rhs.size()) return false;
+        else if(dist > rhs.size()) return true;
+        // dist == rhs.size()
+        return std::lexicographical_compare(std::execution::par_unseq, rhs.cbegin(), rhs.cend(), lhs_begin, lhs_end);
     }
 } less;
 
@@ -79,18 +90,16 @@ struct Equal
     bool operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
         if( lhs.size() != rhs.size() ) return false;
-        assert(lhs.size() == rhs.size());
+        // lhs.size() == rhs.size()
         return std::equal(std::execution::par_unseq, lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
     }
 
     template<class Iterator>
     bool operator()(Iterator lhs_begin, Iterator lhs_end, const BinaryData& rhs)
     {
-        checkIteratorTag<Iterator>();
-        size_t dist1 = std::distance(lhs_begin, lhs_end);
-        size_t dist2 = rhs.size();
-        if( dist1 != dist2 ) return false;
-        assert(dist1 == dist2);
+        isRandomAccessIterator<Iterator>();
+        if( std::distance(lhs_begin, lhs_end) != rhs.size() ) return false;
+        // dist == rhs.size()
         return std::equal(std::execution::par_unseq, lhs_begin, lhs_end, rhs.begin(), rhs.end());
     }
 } equal;
