@@ -8,6 +8,10 @@
 
 using Bit = bool;
 using BinaryData = std::deque<Bit>;
+using BinaryReturnType = std::tuple<BinaryData, size_t>;
+
+template<class Iterator>
+using ReturnType = std::tuple<BinaryData, Iterator, bool>;
 
 void leftShift(BinaryData& data, Bit bit)
 {
@@ -91,22 +95,21 @@ struct Equal
     }
 } equal;
 
-// TODO: count 1
 struct Subtraction
 {
-    BinaryData operator()(const BinaryData& minuend, const BinaryData& subtrahend)
+    BinaryReturnType operator()(const BinaryData& minuend, const BinaryData& subtrahend)
     {
-        assert(isLoan == false);
-        auto [result, it] = proccess(subtrahend.crbegin(), subtrahend.crend(), minuend.crbegin());
-        addRest(result, it, minuend.crend());
-        return result;
+        m_units = 0;
+        auto [result, it, isLoad] = proccess(subtrahend.crbegin(), subtrahend.crend(), minuend.crbegin());
+        addRest(result, it, minuend.crend(), isLoad);
+        return {result, m_units};
     }
 
 private:
-    bool isLoan = false;
+    size_t m_units;
 
     template<class Iterator>
-    void addRest(BinaryData& number, Iterator startIt, Iterator endIt)
+    void addRest(BinaryData& number, Iterator startIt, Iterator endIt, bool isLoan)
     {
         if(isLoan)
         {
@@ -121,21 +124,25 @@ private:
                 }
 
                 number.push_front(1);
+                ++m_units;
             }
         }
 
         for(;startIt != endIt; ++startIt)
+        {
+            if(*startIt == 1) ++m_units;
             number.push_front(*startIt);
+        }
 
         assert(startIt == endIt);
         removeInsignificantBits(number);
-        isLoan = false;
     }
 
     template<class Iterator>
-    std::pair<BinaryData, Iterator> proccess(Iterator subtrahendStart, Iterator subtrahendEnd, Iterator minuendIt)
+    ReturnType<Iterator> proccess(Iterator subtrahendStart, Iterator subtrahendEnd, Iterator minuendIt)
     {
         BinaryData result;
+        bool isLoan = false;
         for(; subtrahendStart != subtrahendEnd; ++subtrahendStart, ++minuendIt)
         {
             if(*minuendIt > *subtrahendStart) // 1 0
@@ -145,12 +152,17 @@ private:
                     isLoan = false;
                     result.push_front(0);
                 }
-                else result.push_front(1);
+                else
+                {
+                    ++m_units;
+                    result.push_front(1);
+                }
             }
             else if(*minuendIt < *subtrahendStart) // 0 1
             {
                 if(!isLoan)
                 {
+                    ++m_units;
                     result.push_front(1);
                     isLoan = true;
                 }
@@ -158,12 +170,16 @@ private:
             }
             else // 1 1 or 0 0
             {
-                if(isLoan) result.push_front(1);
+                if(isLoan)
+                {
+                    ++m_units;
+                    result.push_front(1);
+                }
                 else result.push_front(0);
             }
         }
 
-        return {result, minuendIt};
+        return {result, minuendIt, isLoan};
     }
 
     void removeInsignificantBits(BinaryData& number)
@@ -180,34 +196,28 @@ private:
 
 struct Addition
 {
-    BinaryData operator()(const BinaryData& lhs, const BinaryData& rhs)
+    BinaryReturnType operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
-        assert(isTransfer == false);
-        if(lhs.size() < rhs.size())
+        m_units = 0;
+        if(lhs.size() <= rhs.size())
         {
-            auto [result, it] = proccess(lhs.crbegin(), lhs.crend(), rhs.crbegin());
-            addRest(result, it, rhs.crend());
-            return result;
-        } else if (lhs.size() > rhs.size())
+            auto [result, it, isTransfer] = proccess(lhs.crbegin(), lhs.crend(), rhs.crbegin());
+            addRest(result, it, rhs.crend(), isTransfer);
+            return {result, m_units};
+        } else
         {
-            auto [result, it] = proccess(rhs.crbegin(), rhs.crend(), lhs.crbegin());
-            addRest(result, it, lhs.crend());
-            return result;
-        }
-        else
-        {
-            auto [result, it] = proccess(lhs.crbegin(), lhs.crend(), rhs.crbegin());
-            addRest(result, it, rhs.crend());
-            return result;
+            auto [result, it, isTransfer] = proccess(rhs.crbegin(), rhs.crend(), lhs.crbegin());
+            addRest(result, it, lhs.crend(), isTransfer);
+            return {result, m_units};
         }
     }
 
 private:
-    bool isTransfer = false;
 
-    // TODO: count 1
+    size_t m_units;
+
     template<class Iterator>
-    void addRest(BinaryData& number, Iterator startIt, Iterator endIt)
+    void addRest(BinaryData& number, Iterator startIt, Iterator endIt, bool isTransfer)
     {
         if(isTransfer)
         {
@@ -216,6 +226,7 @@ private:
                 if(*startIt == 0)
                 {
                     number.push_front(1);
+                    ++m_units;
                     isTransfer = false;
                     ++startIt;
                     break;
@@ -226,26 +237,33 @@ private:
         }
 
         for(;startIt != endIt; ++startIt)
+        {
+            if(*startIt == 1) ++m_units;
             number.push_front(*startIt);
+        }
 
         if(isTransfer)
         {
             number.push_front(1);
+            ++m_units;
             isTransfer = false;
         }
     }
 
-    // TODO: count 1
     template<class Iterator>
-    std::pair<BinaryData, Iterator> proccess(Iterator lhsIt, Iterator endIt, Iterator rhsIt)
+    ReturnType<Iterator> proccess(Iterator lhsIt, Iterator endIt, Iterator rhsIt)
     {
         BinaryData result;
+        bool isTransfer = false;
         for(; lhsIt != endIt; ++rhsIt, ++lhsIt)
         {
             if(*lhsIt == 1 && *rhsIt == 1)
             {
                 if(isTransfer)
+                {
+                    ++m_units;
                     result.push_front(1);
+                }
                 else
                 {
                     isTransfer = true;
@@ -253,13 +271,28 @@ private:
                 }
             } else if(*lhsIt == 0 && *rhsIt == 0)
             {
-                isTransfer ? result.push_front(1) : result.push_front(0);
+                if (isTransfer)
+                {
+                    result.push_front(1);
+                    ++m_units;
+                }
+                else result.push_front(0);
+
                 isTransfer = false;
-            } else if(*lhsIt != *rhsIt)
-                isTransfer ? result.push_front(0) : result.push_front(1);
+            }
+            else if(*lhsIt != *rhsIt)
+            {
+                if(isTransfer)
+                    result.push_front(0);
+                else
+                {
+                    result.push_front(1);
+                    ++m_units;
+                }
+            }
         }
 
-        return {result, rhsIt};
+        return {result, rhsIt, isTransfer};
     }
 
 } addition;
@@ -364,40 +397,60 @@ private:
 
 struct Module
 {
-     BinaryData operator()(const BinaryData& lhs, const BinaryData& rhs)
+     BinaryReturnType operator()(const BinaryData& dividend, const BinaryData& divisor)
      {
-         BinaryData result;
+         BinaryData result = dividend;
+         BinaryData tmp;
+         size_t units = 0;
+         size_t diff = dividend.size() - divisor.size();
+         auto offsetIt = std::next(dividend.begin(), divisor.size());
 
-         return result;
+         while(less(divisor, dividend))
+         {
+             if( greater( dividend.begin(), offsetIt, divisor ) )
+             {
+                 tmp = Shift(divisor, diff, 0);
+             }
+             else
+             {
+                 tmp = Shift(divisor, --diff, 0);
+             }
+
+             std::tie(result, units) = subtraction(result, tmp);
+         }
+
+         return {result, units};
      }
 
 } modulo;
 
 struct Multiplication
 {
-    BinaryData operator()(const BinaryData& lhs, const BinaryData& rhs)
+    BinaryReturnType operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
         return proccess(lhs.crbegin(), lhs.crend(), rhs);
     }
 
 private:
-    size_t offset = 0;
 
-    void handleNextZero(BinaryData& result, BinaryData& tmp, const BinaryData& other)
+    size_t m_units;
+
+    void handleNextZero(BinaryData& result, BinaryData& tmp, const BinaryData& other, size_t& offset)
     {
         if(offset > 1)
         {
-             result = addition(result, tmp);
-            if(offset > 1) result = subtraction(result, other);
+            std::tie(result, m_units) = addition(result, tmp);
+            if(offset > 1) std::tie(result, m_units) = subtraction(result, other);
             offset = 0;
         }
     }
 
     template<class Iterator>
-    BinaryData proccess(Iterator startIt, Iterator endIt, const BinaryData& other)
+    BinaryReturnType proccess(Iterator startIt, Iterator endIt, const BinaryData& other)
     {
         BinaryData result;
         BinaryData tmp;
+        size_t offset = 0;
         std::copy(std::execution::par_unseq, startIt, endIt, std::back_inserter(tmp));
         for(; startIt != endIt; ++startIt)
         {
@@ -406,13 +459,13 @@ private:
             {
                 ++offset;
                 if( *std::next(startIt, 1) == 0 || std::next(startIt, 1) == endIt )
-                    handleNextZero(result, tmp, other);
+                    handleNextZero(result, tmp, other, offset);
 
                 leftShift(tmp, 0);
             }
         }
 
-        return result;
+        return {result, m_units};
     }
 
 } multiplication;
