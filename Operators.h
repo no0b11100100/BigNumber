@@ -308,46 +308,33 @@ private:
 
 struct Division
 {
-    BinaryData operator()(BinaryData dividend, BinaryData divisor)
+    // TODO: need tests
+    BinaryReturnType operator()(BinaryData dividend, BinaryData divisor)
     {
         assert(greater( dividend, divisor ) == true);
         BinaryData result;
         BinaryData tmp;
+        size_t units = 0;
 
-        // TODO: check is it possible to add 1 in cases < and ==
+        // TODO: check is it possible to add 0 and 1 together in cases ==
         while(less(divisor, dividend))
         {
             size_t diff = dividend.size() - divisor.size();
-            auto offsetIt = std::next(dividend.begin(), divisor.size());
-            if(greater( dividend.begin(), offsetIt, divisor ) )
-            {
-                tmp = Shift(divisor, diff, 1);
-            }
-            else if(equal(dividend.begin(), offsetIt, divisor))
-            {
-                tmp.clear();
-                std::move(divisor.begin(), divisor.end(), std::back_inserter(tmp));
-                std::for_each(offsetIt, dividend.end(), [&](Bit bit)
-                {
-                    leftShift(tmp, bit);
-                });
-            }
-            else
-            {
-                tmp.clear();
-                bool isFirstUnit = false;
-                std::move(divisor.begin(), divisor.end(), std::back_inserter(tmp));
+            auto offsetIt = std::next(dividend.cbegin(), divisor.size());
 
-                if( std::find(std::execution::par_unseq, offsetIt, dividend.end(), 1) == dividend.end() )
-                {
-                    std::for_each(next(offsetIt, 1), dividend.end(), [&](Bit)
-                    {
-                        tmp.push_back(1);
-                    });
-                }
+            // TODO: count result
+            if( greater(dividend.cbegin(), offsetIt, divisor) ) tmp = Shift(divisor, diff, 1);
+            else if( less(dividend.cbegin(), offsetIt, divisor) ) tmp = Shift(divisor, --diff, 1);
+            else // equal
+            {
+                bool isAllOfUnits = std::all_of(std::execution::par_unseq, offsetIt, dividend.cend(),
+                                           [](const Bit& bit){ return bit == 1; });
+
+                if( isAllOfUnits ) tmp = Shift(divisor, diff, 1);
                 else
                 {
-                    std::for_each(offsetIt, dividend.end(), [&](Bit bit)
+                    bool isFirstUnit = false;
+                    std::for_each(offsetIt, dividend.cend(), [&](const Bit& bit)
                     {
                         if(bit == 1 && !isFirstUnit)
                         {
@@ -361,11 +348,13 @@ struct Division
             }
 
             dividend = minus(dividend, tmp);
+//            std::tie(result, units) = addition(result, tmp[divisor.size():]);
+//            std::tie(dividend, std::ignore) = subtraction(dividend, tmp);
         }
 
         for(auto v : dividend) std::cout << v << std::endl;
 
-        return result;
+        return {result, units};
     }
 
 private:
