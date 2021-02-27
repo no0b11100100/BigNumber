@@ -40,33 +40,18 @@ struct Less
 {
     bool operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
-        if( lhs.size() > rhs.size() ) return false;
-        if( lhs.size() < rhs.size() ) return true;
-        assert(lhs.size() == rhs.size());
         return std::lexicographical_compare(std::execution::par_unseq, lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
     }
 
     template<class Iterator>
     bool operator()(Iterator lhs_begin, Iterator lhs_end, const BinaryData& rhs)
     {
-        checkIteratorTag<Iterator>();
-        size_t dist1 = std::distance(lhs_begin, lhs_end);
-        size_t dist2 = rhs.size();
-        if( dist1 > dist2 ) return false;
-        if( dist1 < dist2 ) return true;
-        assert(dist1 == dist2);
         return std::lexicographical_compare(std::execution::par_unseq, lhs_begin, lhs_end, rhs.begin(), rhs.end());
     }
 
     template<class Iterator>
     bool operator()(const BinaryData& rhs, Iterator lhs_begin, Iterator lhs_end)
     {
-        checkIteratorTag<Iterator>();
-        size_t dist1 = std::distance(lhs_begin, lhs_end);
-        size_t dist2 = rhs.size();
-        if( dist1 > dist2 ) return false;
-        if( dist1 < dist2 ) return true;
-        assert(dist1 == dist2);
         return std::lexicographical_compare(std::execution::par_unseq, rhs.begin(), rhs.end(), lhs_begin, lhs_end);
     }
 } less;
@@ -106,13 +91,14 @@ struct Equal
     }
 } equal;
 
+// TODO: count 1
 struct Subtraction
 {
-    BinaryData operator()(const BinaryData& lhs, const BinaryData& rhs)
+    BinaryData operator()(const BinaryData& minuend, const BinaryData& subtrahend)
     {
-//        assert(greater(lhs, rhs));
-        auto [result, it] = proccess(rhs.crbegin(), rhs.crend(), lhs.crbegin());
-        addRest(result, it, lhs.crend());
+        assert(isLoan == false);
+        auto [result, it] = proccess(subtrahend.crbegin(), subtrahend.crend(), minuend.crbegin());
+        addRest(result, it, minuend.crend());
         return result;
     }
 
@@ -147,43 +133,37 @@ private:
     }
 
     template<class Iterator>
-    std::pair<BinaryData, Iterator> proccess(Iterator lhsIt, Iterator endIt, Iterator rhsIt)
+    std::pair<BinaryData, Iterator> proccess(Iterator subtrahendStart, Iterator subtrahendEnd, Iterator minuendIt)
     {
         BinaryData result;
-        for(; lhsIt != endIt; ++lhsIt, ++rhsIt)
+        for(; subtrahendStart != subtrahendEnd; ++subtrahendStart, ++minuendIt)
         {
-            if(*lhsIt < *rhsIt) // 1 0
+            if(*minuendIt > *subtrahendStart) // 1 0
             {
-                if(isLoan) result.push_front(0);
-                else
+                if(isLoan)
                 {
-                    result.push_front(1);
                     isLoan = false;
+                    result.push_front(0);
                 }
-
+                else result.push_front(1);
             }
-            else if(*lhsIt == 1 && *rhsIt == 1) // 1 1
-            {
-                isLoan = false;
-                result.push_front(0);
-            }
-            else if(*lhsIt == *rhsIt) // 0 0
-            {
-                if(isLoan) result.push_front(1);
-                else result.push_front(0);
-            }
-            else // 0 1
+            else if(*minuendIt < *subtrahendStart) // 0 1
             {
                 if(!isLoan)
                 {
                     result.push_front(1);
                     isLoan = true;
                 }
-                else
-                    result.push_front(0);
+                else result.push_front(0);
+            }
+            else // 1 1 or 0 0
+            {
+                if(isLoan) result.push_front(1);
+                else result.push_front(0);
             }
         }
-        return {result, rhsIt};
+
+        return {result, minuendIt};
     }
 
     void removeInsignificantBits(BinaryData& number)
@@ -202,6 +182,7 @@ struct Addition
 {
     BinaryData operator()(const BinaryData& lhs, const BinaryData& rhs)
     {
+        assert(isTransfer == false);
         if(lhs.size() < rhs.size())
         {
             auto [result, it] = proccess(lhs.crbegin(), lhs.crend(), rhs.crbegin());
