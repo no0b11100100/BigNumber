@@ -5,6 +5,7 @@
 #include <climits>
 #include <cassert>
 #include <iostream>
+#include <thread>
 
 using Bit = bool;
 using BinaryData = std::deque<Bit>;
@@ -13,18 +14,11 @@ using BinaryReturnType = std::tuple<BinaryData, size_t>;
 template<class Iterator>
 using ReturnType = std::tuple<BinaryData, Iterator, bool>;
 
-void leftShift(BinaryData& data, Bit bit)
+void leftShift(BinaryData& data)
 {
     if(data.size() == std::numeric_limits<size_t>::max()) return;
-    data.push_back(bit);
-}
-
-BinaryData Shift(const BinaryData& data, size_t count, Bit bit)
-{
-    BinaryData result = data;
-    for(size_t i {0}; i < count; ++i)
-        result.push_back(bit);
-    return result;
+    if(data.empty()) data.push_back(1);
+    else data.push_back(0);
 }
 
 void rightShift(BinaryData& data)
@@ -308,119 +302,63 @@ private:
 
 struct Division
 {
+    enum class Mode
+    {
+        Div,
+        Mod
+    };
     // TODO: need tests
-    BinaryReturnType operator()(BinaryData dividend, BinaryData divisor)
+    BinaryReturnType operator()(BinaryData dividend, BinaryData divisor, Mode mode)
     {
         assert(greater( dividend, divisor ) == true);
         BinaryData result;
-        BinaryData tmp;
+        BinaryData tmp = divisor;
+        BinaryData shiftedData;
         size_t units = 0;
 
-        // TODO: check is it possible to add 0 and 1 together in cases ==
         while(less(divisor, dividend))
         {
             size_t diff = dividend.size() - divisor.size();
             auto offsetIt = std::next(dividend.cbegin(), divisor.size());
 
-            // TODO: count result
-            if( greater(dividend.cbegin(), offsetIt, divisor) ) tmp = Shift(divisor, diff, 1);
-            else if( less(dividend.cbegin(), offsetIt, divisor) ) tmp = Shift(divisor, --diff, 1);
-            else // equal
-            {
-                bool isAllOfUnits = std::all_of(std::execution::par_unseq, offsetIt, dividend.cend(),
-                                           [](const Bit& bit){ return bit == 1; });
+            if( greater(dividend.cbegin(), offsetIt, divisor) )
+                PrepareNumbers(tmp, shiftedData, diff);
+            else
+                PrepareNumbers(tmp, shiftedData, --diff);
 
-                if( isAllOfUnits ) tmp = Shift(divisor, diff, 1);
-                else
-                {
-                    bool isFirstUnit = false;
-                    std::for_each(offsetIt, dividend.cend(), [&](const Bit& bit)
-                    {
-                        if(bit == 1 && !isFirstUnit)
-                        {
-                            isFirstUnit = true;
-                            tmp.push_back(0);
-                        }
-                        else if(bit == 0 && !isFirstUnit) tmp.push_back(0);
-                        else tmp.push_back(1);
-                    });
-                }
-            }
+            if(mode == Mode::Div)
+                std::tie(result, units) = addition(result, shiftedData);
 
-            dividend = minus(dividend, tmp);
-//            std::tie(result, units) = addition(result, tmp[divisor.size():]);
-//            std::tie(dividend, std::ignore) = subtraction(dividend, tmp);
+            std::tie(dividend, std::ignore) = subtraction(dividend, tmp);
         }
-
-        for(auto v : dividend) std::cout << v << std::endl;
 
         return {result, units};
     }
 
 private:
-    BinaryData Binary(int number)
-    {
-        BinaryData list_number;
-        while(number > 0)
-        {
-            bool value = static_cast<bool>(number % 2);
-            list_number.push_front(value);
-            number >>= 1;
-        }
 
-        return list_number;
+    static void prepareShiftedData(BinaryData& shiftedData, size_t count)
+    {
+        size_t size = shiftedData.size();
+        if(size < count)
+            for(size_t i {size}; i < count; ++i)
+                leftShift(shiftedData);
+        else
+            for(size_t i {size}; i < count; ++i)
+                rightShift(shiftedData);
     }
 
-    BinaryData minus(BinaryData a, BinaryData b){
-           std::string s1;
-           std::string s2;
+    static void PrepareNumbers(BinaryData& result, BinaryData& shiftedData, size_t count)
+    {
+        std::thread prepareShiftedDataThread(prepareShiftedData, std::ref(shiftedData), count);
 
-           for(auto v : a) s1 += std::to_string(v);
-           for(auto v : b) s2 += std::to_string(v);
+        for(size_t i {0}; i < count; ++i)
+            leftShift(result);
 
-           return Binary( std::strtoull(s1.c_str(), NULL, 2) - std::strtoull(s2.c_str(), NULL, 2)  );
-       };
-
-    BinaryData plus(BinaryData a, BinaryData b){
-           std::string s1;
-           std::string s2;
-
-           for(auto v : a) s1 += std::to_string(v);
-           for(auto v : b) s2 += std::to_string(v);
-
-           return Binary( std::strtoull(s1.c_str(), NULL, 2) + std::strtoull(s2.c_str(), NULL, 2)  );
-       };
+        prepareShiftedDataThread.join();
+    }
 
 } division;
-
-struct Module
-{
-     BinaryReturnType operator()(const BinaryData& dividend, const BinaryData& divisor)
-     {
-         BinaryData result = dividend;
-         BinaryData tmp;
-         size_t units = 0;
-         size_t diff = dividend.size() - divisor.size();
-         auto offsetIt = std::next(dividend.begin(), divisor.size());
-
-         while(less(divisor, dividend))
-         {
-             if( greater( dividend.begin(), offsetIt, divisor ) )
-             {
-                 tmp = Shift(divisor, diff, 0);
-             }
-             else
-             {
-                 tmp = Shift(divisor, --diff, 0);
-             }
-
-             std::tie(result, units) = subtraction(result, tmp);
-         }
-
-         return {result, units};
-     }
-
-} modulo;
 
 struct Multiplication
 {
@@ -452,14 +390,14 @@ private:
         std::copy(std::execution::par_unseq, startIt, endIt, std::back_inserter(tmp));
         for(; startIt != endIt; ++startIt)
         {
-            if(*startIt == 0) leftShift(tmp, 0);
+            if(*startIt == 0) leftShift(tmp);
             if(*startIt == 1)
             {
                 ++offset;
                 if( *std::next(startIt, 1) == 0 || std::next(startIt, 1) == endIt )
                     handleNextZero(result, tmp, other, offset);
 
-                leftShift(tmp, 0);
+                leftShift(tmp);
             }
         }
 
