@@ -6,6 +6,7 @@
 #include <cassert>
 #include <iostream>
 #include <thread>
+#include <string>
 
 using Bit = bool;
 using BinaryData = std::deque<Bit>;
@@ -14,14 +15,14 @@ using BinaryReturnType = std::tuple<BinaryData, size_t>;
 template<class Iterator>
 using ReturnType = std::tuple<BinaryData, Iterator, bool>;
 
-void leftShift(BinaryData& data)
+void leftShift(BinaryData& data) noexcept
 {
     if(data.size() == std::numeric_limits<size_t>::max()) return;
     if(data.empty()) data.push_back(1);
     else data.push_back(0);
 }
 
-void rightShift(BinaryData& data)
+void rightShift(BinaryData& data) noexcept
 {
     if(data.empty()) return;
     data.pop_front();
@@ -332,7 +333,8 @@ struct Division
             std::tie(dividend, std::ignore) = subtraction(dividend, tmp);
         }
 
-        return {result, units};
+        return mode == Mode::Div ? std::make_tuple(result, units)
+                                 : std::make_tuple(dividend, units);
     }
 
 private:
@@ -394,7 +396,7 @@ private:
             if(*startIt == 1)
             {
                 ++offset;
-                if( *std::next(startIt, 1) == 0 || std::next(startIt, 1) == endIt )
+                if( *std::next(startIt) == 0 || std::next(startIt) == endIt )
                     handleNextZero(result, tmp, other, offset);
 
                 leftShift(tmp);

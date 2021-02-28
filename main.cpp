@@ -1,7 +1,6 @@
 #include <iostream>
-//#include "bignumber.hpp"
-#include "Operators.h"
 #include <chrono>
+#include <functional>
 
 using namespace std;
 
@@ -37,12 +36,5 @@ private:
 
 int main()
 {
-    BinaryData a {1,0,0,0,0,0};
-    BinaryData b {1,1};
-
-    Timer::Timer<Timer::mcs> t(division, a, b);
-
-    cout << "execution time is " << t.Time() << endl;
-
     return 0;
 }
