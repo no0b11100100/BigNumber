@@ -1,7 +1,4 @@
 #pragma once
-#include <list>
-#include <forward_list>
-#include <vector>
 #include <cmath>
 #include <iterator>
 #include "Converter.hpp"
@@ -10,68 +7,6 @@
 namespace BigInt
 {
 
-enum class Base
-{
-    Binary,
-    Octal,
-    Decimal,
-    Hexadecimal,
-};
-
-namespace
-{
-
-template<typename T>
-constexpr bool is_allow_primary()
-{
-    using Type = std::decay_t<T>;
-    return std::is_same_v<Type, int> ||
-            std::is_same_v<Type, unsigned> ||
-            std::is_same_v<Type, signed> ||
-            std::is_same_v<Type, short> ||
-            std::is_same_v<Type, unsigned short> ||
-            std::is_same_v<Type, signed short> ||
-            std::is_same_v<Type, long> ||
-            std::is_same_v<Type, signed long> ||
-            std::is_same_v<Type, unsigned long> ||
-            std::is_same_v<Type, long long> ||
-            std::is_same_v<Type, unsigned long long> ||
-            std::is_same_v<Type, signed long long> ||
-            std::is_same_v<Type, bool> ||
-            std::is_same_v<Type, char> ||
-            std::is_same_v<Type, uint8_t> ||
-            std::is_same_v<Type, uint16_t> ||
-            std::is_same_v<Type, uint32_t> ||
-            std::is_same_v<Type, uint64_t> ||
-            std::is_same_v<Type, int8_t> ||
-            std::is_same_v<Type, int16_t> ||
-            std::is_same_v<Type, int32_t> ||
-            std::is_same_v<Type, int64_t> ||
-            std::is_same_v<Type, std::size_t>;
-}
-
-template<class Container>
-constexpr bool is_allow_container()
-{
-    using ValueType = typename std::decay_t<Container>::value_type;
-    return std::is_same_v<Container, std::string> ||
-            (std::is_same_v<Container, std::vector<ValueType>> && is_allow_primary<ValueType>() ) ||
-            (std::is_same_v<Container, std::list<ValueType>> && is_allow_primary<ValueType>() ) ||
-            (std::is_same_v<Container, std::deque<ValueType>> && is_allow_primary<ValueType>() ) ||
-            (std::is_same_v<Container, std::forward_list<ValueType>> && is_allow_primary<ValueType>() ) ||
-            (std::is_same_v<Container, std::initializer_list<ValueType>> && is_allow_primary<ValueType>() ) ||
-            (std::is_same_v<Container, std::array<ValueType, sizeof (Container)/sizeof(ValueType)>> && is_allow_primary<ValueType>() );
-}
-
-std::unordered_map<Base, std::pair<unsigned, unsigned>> limits {
-    { Base::Binary, {0, 1} },
-    { Base::Octal, {0, 7} },
-    { Base::Decimal, {0, 9} },
-    { Base::Hexadecimal, {0, 15} },
-};
-
-} // namespace
-
 class BigInt final
 {
     enum class Sign : bool
@@ -79,33 +14,6 @@ class BigInt final
         Positive,
         Negative
     };
-
-    template<class T>
-    bool validator(T&& value, Base base)
-    {
-        assert (static_cast<unsigned>(base) < static_cast<unsigned>(Base::Hexadecimal));
-        unsigned validatedValue;
-        if(std::is_same_v<std::decay_t<T>, char>)
-        {
-            if(value > '9')
-                validatedValue = static_cast<unsigned>(std::tolower(value) - 'a');
-            else
-                validatedValue = static_cast<unsigned>(std::tolower(value));
-        }
-
-        return validatedValue >= limits[base].first &&
-                  validatedValue <= limits[base].second;
-    }
-
-    template< class TContainer>
-    bool isValid(TContainer&& container, Base base)
-    {
-        using valueType = typename std::decay_t<TContainer>::value_type;
-        return std::find_if_not(std::execution::par_unseq, cbegin(container), cend(container),
-                     [&](const valueType& value){ return validator(value, base); })
-        == container.cend();
-    }
-
     template<class TransformPredicate, class ForEachPredicate>
     BigInt binaryOperatorsWithAssignment(const BigInt& lhs, const BigInt& rhs,
                            TransformPredicate transformPredicate,
@@ -188,11 +96,68 @@ public:
         m_sign{Sign::Positive}
     {}
 
+    template<class T>
+    BigInt(T&& value, Base base)
+        : m_number{toBinary(value, base)}
+    {}
+
     const BinaryData& Number() const { return m_number; }
 
     size_t count() const
     {
         return m_bitSet;
+    }
+
+    friend BigInt operator + (const BigInt& lhs, const BigInt& rhs)
+    {
+        if(lhs.isPositive() && rhs.isPositive())
+        {
+            auto [result, bits] = addition(lhs.Number(), rhs.Number());
+            return BigInt(result, bits, Sign::Positive);
+        }
+        //  TODO: handle negative and positive cases
+    }
+
+    friend BigInt operator - (const BigInt& lhs, const BigInt& rhs)
+    {
+        if(lhs.isPositive() && rhs.isPositive())
+        {
+            auto [result, bits] = addition(lhs.Number(), rhs.Number());
+            return BigInt(result, bits, Sign::Positive);
+        }
+
+        auto [result, bits] =  lhs > rhs ?
+                subtraction(lhs.Number(), rhs.Number()) :
+                subtraction(rhs.Number(), lhs.Number());
+
+        return BigInt(result, bits, Sign::Negative);
+    }
+
+    friend BigInt operator * (const BigInt& lhs, const BigInt& rhs)
+    {
+        Sign sign = ( (lhs.isPositive() && rhs.isPositive()) ||
+                      (lhs.isNegative() && rhs.isNegative())) ? Sign::Positive :
+                                                                Sign::Negative;
+        auto[result, bits] = multiplication(lhs.Number(), rhs.Number());
+        return BigInt(result, bits, sign);
+    }
+
+    friend BigInt operator / (const BigInt& lhs, const BigInt& rhs)
+    {
+        if(lhs < rhs) return BigInt();
+        Sign sign = ( (lhs.isPositive() && rhs.isPositive()) ||
+                      (lhs.isNegative() && rhs.isNegative())) ? Sign::Positive :
+                                                                Sign::Negative;
+        auto [result, bits] = division(lhs.Number(), rhs.Number(), Division::Mode::Div);
+        return BigInt(result, bits, sign);
+    }
+
+    friend BigInt operator % (const BigInt& lhs, const BigInt& rhs)
+    {
+        if(lhs < rhs) return rhs;
+        Sign sign;
+        auto [result, bits] = division(lhs.Number(), rhs.Number(), Division::Mode::Mod);
+        return BigInt(result, bits, sign);
     }
 
     friend bool operator < (const BigInt& lhs, const BigInt& rhs)
@@ -299,6 +264,9 @@ public:
 
         return *this;
     }
+
+    bool isPositive() const { return m_sign == Sign::Positive; }
+    bool isNegative() const { return isPositive(); }
 
 };
 
