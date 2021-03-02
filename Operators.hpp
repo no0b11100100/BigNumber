@@ -15,17 +15,29 @@ using BinaryReturnType = std::tuple<BinaryData, size_t>;
 template<class Iterator>
 using ReturnType = std::tuple<BinaryData, Iterator, bool>;
 
-void leftShift(BinaryData& data) noexcept
+void leftShift(BinaryData& data, const size_t loops = 1) noexcept
 {
-    if(data.size() == std::numeric_limits<size_t>::max()) return;
-    if(data.empty()) data.push_back(1);
-    else data.push_back(0);
+    for(size_t i{0}; i < loops; ++i)
+    {
+        if(data.size() == std::numeric_limits<size_t>::max()) break;
+        if(data.empty()) data.push_back(1);
+        else data.push_back(0);
+    }
 }
 
-void rightShift(BinaryData& data) noexcept
+void rightShift(BinaryData& data, const size_t loops = 1) noexcept
 {
-    if(data.empty()) return;
-    data.pop_front();
+    // TODO: count how much 1 was removed
+    for(size_t i{0}; i < loops; ++i)
+    {
+        if(data.size() == 1)
+        {
+            if(auto it = data.begin(); *it == 1)
+                *it = 0;
+            break;
+        }
+        data.pop_front();
+    }
 }
 
 template<class Iterator>

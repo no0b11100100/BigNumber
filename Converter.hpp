@@ -150,8 +150,7 @@ struct Validator
         else
         {
             using valueType = typename std::decay_t<TContainer>::value_type;
-            return !is_allow_container<TContainer>() ? false :
-            std::find_if_not(std::execution::par_unseq, cbegin(container), cend(container),
+            return std::find_if_not(std::execution::par_unseq, cbegin(container), cend(container),
                                     [&](const valueType& value){ return validation(value, base); })
                     == container.cend();
         }

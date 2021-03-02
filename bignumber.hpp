@@ -7,6 +7,26 @@
 namespace BigInt
 {
 
+namespace
+{
+
+using predicatesType = std::tuple<std::function<Bit(const Bit&, const Bit&)>,
+                                std::function<Bit(const Bit&)>>;
+
+std::unordered_map<char, predicatesType> predicates
+{
+    { '^', std::make_tuple([](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? 0 : 1; },
+                           [](const Bit& bit) { return bit == 0 ? 0 : 1; }) },
+
+    {'|', { std::make_tuple([](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 1; },
+            [](const Bit& bit) { return bit == 0 ? 0 : 1; }) } },
+
+    {'&', { std::make_tuple([](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 0; },
+            [](const Bit&) { return 0; }) } },
+};
+
+}// namespace
+
 class BigInt final
 {
     enum class Sign : bool
@@ -14,10 +34,11 @@ class BigInt final
         Positive,
         Negative
     };
-    template<class TransformPredicate, class ForEachPredicate>
-    BigInt binaryOperatorsWithAssignment(const BigInt& lhs, const BigInt& rhs,
-                           TransformPredicate transformPredicate,
-                           ForEachPredicate forEachPredicate)
+
+    constexpr static const unsigned TransfromPredicate = 0;
+    constexpr static const unsigned ForEachPredicate = 1;
+
+    static BigInt binaryOperatorsWithoutAssignment(const BigInt& lhs, const BigInt& rhs, predicatesType predicates)
     {
         using Iterator = BinaryData::const_reverse_iterator;
         BinaryData result(std::max(lhs.Number().size(), rhs.Number().size()));
@@ -41,27 +62,28 @@ class BigInt final
             secondStart = lhs.Number().crend();
         }
 
-        std::transform(firstStart, firstEnd, secondStart, std::back_inserter(result), transformPredicate);
-        std::for_each(secondStart, secondStart, forEachPredicate);
+        std::transform(firstStart, firstEnd, secondStart, std::back_inserter(result), std::get<TransfromPredicate>(predicates));
+        std::for_each(secondStart, secondStart, [&](const Bit& bit)
+        {
+            Bit newBit = std::get<ForEachPredicate>(predicates)(bit);
+            result.push_back(newBit);
+        });
 
         return BigInt(result, 0, Sign::Positive); // TODO
     }
 
-    template<class TransformPredicate, class ForEachPredicate>
-    BigInt& binaryOperatorsWithoutAssignment(BigInt& This, const BigInt& rhs,
-                           TransformPredicate transformPredicate,
-                           ForEachPredicate forEachPredicate)
+    void binaryOperatorsWithAssignment(BinaryData& This, const BigInt& rhs, predicatesType predicates)
     {
         using Iterator = BinaryData::reverse_iterator;
         Iterator end = m_number.size() < rhs.Number().size() ?
                     m_number.rend() :
                     std::next(m_number.rbegin(), m_number.size() - rhs.Number().size());
 
-        std::transform(m_number.rbegin(), end, rhs.Number().rbegin(), transformPredicate);
+        std::transform(This.rbegin(), end, rhs.Number().rbegin(), std::get<TransfromPredicate>(predicates));
 
         Iterator restStart, restEnd;
 
-        if(end == m_number.rend())
+        if(end == This.rend())
         {
             size_t offset = rhs.Number().size() - m_number.size();
             restStart = std::next(std::decay_t<BinaryData>(rhs.Number()).rbegin(), offset);
@@ -69,14 +91,16 @@ class BigInt final
         }
         else
         {
-            size_t offset = m_number.size() - rhs.Number().size();
-            restStart = std::next(m_number.rbegin(), offset);
-            restEnd = m_number.rend();
+            size_t offset = This.size() - rhs.Number().size();
+            restStart = std::next(This.rbegin(), offset);
+            restEnd = This.rend();
         }
 
-        std::for_each(restStart, restEnd, forEachPredicate);
-
-        return This;
+        std::for_each(restStart, restEnd, [&](const Bit& bit)
+        {
+            Bit newBit = std::get<ForEachPredicate>(predicates)(bit);
+            This.push_back(newBit);
+        });
     }
 
     BinaryData m_number;
@@ -85,8 +109,8 @@ class BigInt final
 
     BigInt(const BinaryData& number, size_t bits, Sign sign):
         m_number{number},
-        m_sign{sign},
-        m_bitSet{bits}
+        m_bitSet{bits},
+        m_sign{sign}
     {}
 
 public:
@@ -102,20 +126,49 @@ public:
     {}
 
     const BinaryData& Number() const { return m_number; }
-
-    size_t count() const
-    {
-        return m_bitSet;
-    }
+    size_t count() const { return m_bitSet; }
+    bool isPositive() const { return m_sign == Sign::Positive; }
+    bool isNegative() const { return isPositive(); }
 
     friend BigInt operator + (const BigInt& lhs, const BigInt& rhs)
     {
-        if(lhs.isPositive() && rhs.isPositive())
+        if( (lhs.isPositive() && rhs.isPositive()) ||
+                (lhs.isNegative() && rhs.isNegative()) )
         {
             auto [result, bits] = addition(lhs.Number(), rhs.Number());
             return BigInt(result, bits, Sign::Positive);
         }
-        //  TODO: handle negative and positive cases
+        if(lhs.isNegative())
+        {
+            if(less(lhs.Number(), rhs.Number()))
+            {
+                auto [result, bits] = subtraction(lhs.Number(), rhs.Number());
+                return BigInt(result, bits, Sign::Positive);
+            }
+            else
+            {
+                auto [result, bits] = subtraction(rhs.Number(), lhs.Number());
+                return BigInt(result, bits, Sign::Negative);
+            }
+        } else if(rhs.isNegative())
+        {
+            if(less(rhs.Number(), lhs.Number()))
+            {
+                auto [result, bits] = subtraction(lhs.Number(), rhs.Number());
+                return BigInt(result, bits, Sign::Positive);
+            }
+            else
+            {
+                auto [result, bits] = subtraction(rhs.Number(), lhs.Number());
+                return BigInt(result, bits, Sign::Negative);
+            }
+        }
+    }
+
+    BigInt& operator += (const BigInt& other)
+    {
+        *this = operator+(*this, other);
+        return *this;
     }
 
     friend BigInt operator - (const BigInt& lhs, const BigInt& rhs)
@@ -133,6 +186,12 @@ public:
         return BigInt(result, bits, Sign::Negative);
     }
 
+    BigInt& operator -= (const BigInt& other)
+    {
+        *this = operator-(*this, other);
+        return *this;
+    }
+
     friend BigInt operator * (const BigInt& lhs, const BigInt& rhs)
     {
         Sign sign = ( (lhs.isPositive() && rhs.isPositive()) ||
@@ -140,6 +199,12 @@ public:
                                                                 Sign::Negative;
         auto[result, bits] = multiplication(lhs.Number(), rhs.Number());
         return BigInt(result, bits, sign);
+    }
+
+    BigInt& operator *= (const BigInt& other)
+    {
+        *this = operator*(*this, other);
+        return *this;
     }
 
     friend BigInt operator / (const BigInt& lhs, const BigInt& rhs)
@@ -152,12 +217,24 @@ public:
         return BigInt(result, bits, sign);
     }
 
+    BigInt& operator /= (const BigInt& other)
+    {
+        *this = operator/(*this, other);
+        return *this;
+    }
+
     friend BigInt operator % (const BigInt& lhs, const BigInt& rhs)
     {
         if(lhs < rhs) return rhs;
         Sign sign;
         auto [result, bits] = division(lhs.Number(), rhs.Number(), Division::Mode::Mod);
         return BigInt(result, bits, sign);
+    }
+
+    BigInt& operator %= (const BigInt& other)
+    {
+        *this = operator%(*this, other);
+        return *this;
     }
 
     friend bool operator < (const BigInt& lhs, const BigInt& rhs)
@@ -192,81 +269,58 @@ public:
 
     friend BigInt operator ^ (const BigInt& lhs, const BigInt& rhs)
     {
-//        using Iterator = BinaryData::const_reverse_iterator;
-//        BinaryData result(std::max(lhs.Number().size(), rhs.Number().size()));
-//        Iterator firstStart;
-//        Iterator firstEnd;
-//        Iterator secondStart;
-//        Iterator secondEnd;
-
-//        if(lhs.count() <= rhs.count())
-//        {
-//            firstStart = lhs.Number().crbegin();
-//            firstEnd = lhs.Number().crend();
-//            secondStart = rhs.Number().crbegin();
-//            secondStart = rhs.Number().crend();
-//        }
-//        else
-//        {
-//            firstStart = rhs.Number().crbegin();
-//            firstEnd = rhs.Number().crend();
-//            secondStart = lhs.Number().crbegin();
-//            secondStart = lhs.Number().crend();
-//        }
-
-//        std::transform(firstStart, firstEnd, secondStart, std::back_inserter(result), [](const Bit& lhsBit, const Bit& rhsBit)
-//        {
-//            return lhsBit == rhsBit ? 0 : 1;
-//        });
-
-//        std::for_each(secondStart, secondStart, [&result](const Bit& bit)
-//        {
-//            if(bit == 0) result.push_back(0);
-//            else result.push_back(1);
-//        });
-
-//        return BigInt(result, Base::Binary);
+        return binaryOperatorsWithoutAssignment(lhs, rhs, predicates['^']);
     }
 
-    BigInt& operator ^= (const BigInt& rhs)
+    BigInt& operator ^= (const BigInt& other)
     {
-//        using Iterator = BinaryData::reverse_iterator;
-//        Iterator end = m_number.size() < rhs.Number().size() ?
-//                    m_number.rend() :
-//                    std::next(m_number.rbegin(), m_number.size() - rhs.Number().size());
-
-//        std::transform(m_number.rbegin(), end, rhs.Number().rbegin(),
-//                       [](const Bit& lhsBit, const Bit& rhsBit)
-//        {
-//            return lhsBit == rhsBit ? 0 : 1;
-//        });
-
-//        Iterator restStart, restEnd;
-
-//        if(end == m_number.rend())
-//        {
-//            size_t offset = rhs.Number().size() - m_number.size();
-//            restStart = std::next(std::decay_t<BinaryData>(rhs.Number()).rbegin(), offset);
-//            restEnd = std::decay_t<BinaryData>(rhs.Number()).rend();
-//        }
-//        else
-//        {
-//            size_t offset = m_number.size() - rhs.Number().size();
-//            restStart = std::next(m_number.rbegin(), offset);
-//            restEnd = m_number.rend();
-//        }
-
-//        std::for_each(restStart, restEnd, [&](const Bit& bit)
-//        {
-//            if(bit == 0) m_number.push_back(0);
-//            else m_number.push_back(1);
-//        });
-
+        binaryOperatorsWithAssignment(m_number, other, predicates['^']);
         return *this;
     }
 
-    bool isPositive() const { return m_sign == Sign::Positive; }
-    bool isNegative() const { return isPositive(); }
+    friend BigInt operator | (const BigInt& lhs, const BigInt& rhs)
+    {
+        return binaryOperatorsWithoutAssignment(lhs, rhs, predicates['|']);
+    }
+
+    BigInt& operator |= (const BigInt& other)
+    {
+        binaryOperatorsWithAssignment(m_number, other, predicates['|']);
+        return *this;
+    }
+
+    friend BigInt operator & (const BigInt& lhs, const BigInt& rhs)
+    {
+        return binaryOperatorsWithoutAssignment(lhs, rhs, predicates['&']);
+    }
+
+    BigInt& operator &= (const BigInt& other)
+    {
+        binaryOperatorsWithAssignment(m_number, other, predicates['&']);
+        return *this;
+    }
+
+    friend BigInt operator << (const BigInt& lhs, const size_t offset)
+    {
+        BinaryData newResult = lhs.Number();
+        leftShift(newResult, offset);
+    }
+
+    BigInt operator <<= (const size_t offset)
+    {
+        leftShift(m_number, offset);
+    }
+
+    friend BigInt operator >> (const BigInt& lhs, const size_t offset)
+    {
+        BinaryData newResult = lhs.Number();
+        rightShift(newResult, offset);
+    }
+
+    BigInt operator >>= (const size_t offset)
+    {
+        rightShift(m_number, offset);
+    }
 
 };
 
