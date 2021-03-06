@@ -73,7 +73,7 @@ enum class Base
 };
 
 template<typename T>
-bool is_allow_primary()
+constexpr bool is_allow_primary()
 {
     using Type = std::decay_t<T>;
     return std::is_same_v<Type, int> ||
@@ -102,20 +102,30 @@ bool is_allow_primary()
 }
 
 template<class Container>
-bool is_allow_container()
+constexpr bool is_allow_container()
 {
-    using ValueType = typename std::decay_t<Container>::value_type;
-    return std::is_same_v<Container, std::string> ||
-            (std::is_same_v<Container, std::vector<ValueType>> && is_allow_primary<ValueType>() ) ||
-            (std::is_same_v<Container, std::list<ValueType>> && is_allow_primary<ValueType>() ) ||
-            (std::is_same_v<Container, std::deque<ValueType>> && is_allow_primary<ValueType>() ) ||
-            (std::is_same_v<Container, std::forward_list<ValueType>> && is_allow_primary<ValueType>() ) ||
-            (std::is_same_v<Container, std::initializer_list<ValueType>> && is_allow_primary<ValueType>() ) ||
-            (std::is_same_v<Container, std::array<ValueType, sizeof (Container)/sizeof(ValueType)>> && is_allow_primary<ValueType>() );
+    if constexpr(is_allow_primary<Container>()) return false;
+    else {
+        using ValueType = typename std::decay_t<Container>::value_type;
+        return std::is_same_v<Container, std::string> ||
+                (std::is_same_v<Container, std::vector<ValueType>> && is_allow_primary<ValueType>() ) ||
+                (std::is_same_v<Container, std::list<ValueType>> && is_allow_primary<ValueType>() ) ||
+                (std::is_same_v<Container, std::deque<ValueType>> && is_allow_primary<ValueType>() ) ||
+                (std::is_same_v<Container, std::forward_list<ValueType>> && is_allow_primary<ValueType>() ) ||
+                (std::is_same_v<Container, std::initializer_list<ValueType>> && is_allow_primary<ValueType>() ) ||
+                (std::is_same_v<Container, std::array<ValueType, sizeof (Container)/sizeof(ValueType)>> && is_allow_primary<ValueType>() );
+    }
 }
 
 struct Validator
 {
+    template<class T>
+    bool operator()(T&& value, Base base)
+    {
+        return isValid(value, base);
+    }
+
+private:
     template<class T>
     bool validation(T&& value, Base base)
     {
@@ -140,29 +150,37 @@ struct Validator
                   validatedValue <= limits[base].second;
     }
 
-    template< class TContainer>
+    template< class TContainer, class = typename std::enable_if_t< is_allow_container<TContainer>() >>
     bool isValid(TContainer&& container, Base base)
     {
-        if(is_allow_primary<TContainer>())
-        {
-            return validation(container, base);
-        }
-        else
-        {
-            using valueType = typename std::decay_t<TContainer>::value_type;
-            return std::find_if_not(std::execution::par_unseq, cbegin(container), cend(container),
-                                    [&](const valueType& value){ return validation(value, base); })
-                    == container.cend();
-        }
+        using valueType = typename std::decay_t<TContainer>::value_type;
+        return std::find_if_not(std::execution::par_unseq, cbegin(container), cend(container),
+                                [&](const valueType& value){ return validation(value, base); })
+                == container.cend();
     }
 
-    template<class T>
-    bool operator()(T&& value, Base base)
+    template< class T, class = typename std::enable_if_t< is_allow_primary<T>()> >
+    bool isValid(T number, Base base)
     {
-        return isValid(value, base);
+        if(base == Base::Hexadecimal)
+        {
+            int validatedValue;
+            if(std::is_same_v<char, std::decay_t<T>>)
+            {
+                if(number > '9')
+                    validatedValue = static_cast<int>(std::tolower(number) - 'a');
+                else
+                    validatedValue = static_cast<int>(number);
+            } else
+                validatedValue = number;
+
+            return validatedValue >= limits[base].first &&
+                      validatedValue <= limits[base].second;
+        }
+
+        return true;
     }
 
-private:
     std::unordered_map<Base, std::pair<unsigned, unsigned>> limits {
         { Base::Binary, {0, 1} },
         { Base::Octal, {0, 7} },
@@ -298,33 +316,31 @@ class ToBinary
     constexpr static const unsigned short octalChanSize = 3;
     constexpr static const unsigned short hexChanSize = 4;
 
-    template<size_t N, class ReversIterator>
+    template<size_t N>
     std::initializer_list<Bit> makeChan(char symbol)
     {
         static_assert (N == 3 || N == 4, "chan size must be 3 or 4");
         return hexOctalCast[symbol][hexChanSize-N];
     }
 
-    template<size_t N, class TContainer>
-    BinaryData convertHexOrOctalToBinary(TContainer&& container)
+    template<size_t N, class TContainer,
+             class = typename std::enable_if_t< is_allow_container<TContainer>() >>
+    BinaryData convertHexOrOctalToBinary(const TContainer& container)
     {
         BinaryData result;
-
-        if(is_allow_primary<TContainer>())
-        {
-            if(int value = static_cast<int>(container); validator(value, Base::Octal))
-            {
-                return BinaryData{makeChan<N>(value-'0')};
-            }
-        }
-
-        for(auto const& symbol : container)
+        for(const auto& symbol : container)
         {
             auto bitsList = makeChan<N>(symbol);
             std::move(bitsList.begin(), bitsList.end(), std::back_inserter(result));
         }
-
         return result;
+    }
+
+    template<size_t N, class T,
+             class = typename std::enable_if_t< is_allow_primary<T>() >>
+    BinaryData convertHexOrOctalToBinary(T number)
+    {
+        return BinaryData(makeChan<N>(static_cast<char>(number)));
     }
 
     /**
@@ -350,19 +366,25 @@ class ToBinary
         return static_cast<Bit>(remainder);
     };
 
-    template<class TContainer>
-    BinaryData toBinary(TContainer&& container)
+    template<class TContainer, class = typename std::enable_if_t< is_allow_container<TContainer>() >>
+    BinaryData toBinary(const TContainer& container)
     {
         BinaryData binary;
+        std::copy(container.cbegin(), container.cend(), std::back_inserter(binary));
+        return binary;
         if(is_allow_primary<TContainer>())
         {
             if(unsigned bit = static_cast<unsigned>(container); bit <= 1)
                 binary.push_back(bit);
         }
-        else
-            std::copy(container.cbegin(), container.cend(), std::back_inserter(binary));
+    }
 
-        return binary;
+    template<class T, class = typename std::enable_if_t< is_allow_primary<T>() >>
+    BinaryData toBinary(T bit)
+    {
+        if(validator(bit, Base::Binary))
+            return BinaryData(static_cast<Bit>(bit));
+        return BinaryData();
     }
 
     template<class TContainer>
@@ -371,29 +393,28 @@ class ToBinary
         return convertHexOrOctalToBinary<octalChanSize>(std::forward<TContainer>(container));
     }
 
-    template<class TContainer>
-    BinaryData toDecimal(TContainer&& container)
+    template<class TContainer, class = typename std::enable_if_t< is_allow_container<TContainer>() >>
+    BinaryData toDecimal(const TContainer& container)
     {
         BinaryData binary;
-        if(is_allow_primary<TContainer>())
+        while(!container.empty())
         {
-            if(container == 0) binary.push_back(0);
-            else
-            {
-                while(container > 0)
-                {
-                    binary.push_back(container&1);
-                    container /= 2;
-                }
-            }
+            Bit bit = getRemainder(std::forward<TContainer>(container));
+            binary.push_front(bit); // TODO: clarify
         }
-        else
+
+        return binary;
+    }
+
+    template<class T, class = typename std::enable_if_t< is_allow_primary<T>() >>
+    BinaryData toDecimal(T number)
+    {
+        BinaryData binary;
+        if(number == 0) return BinaryData(0);
+        while(number > 0)
         {
-            while(!container.empty())
-            {
-                Bit bit = getRemainder(std::forward<TContainer>(container));
-                binary.push_front(bit); // TODO: clarify
-            }
+            binary.push_front(number&1);
+            number /= 2;
         }
 
         return binary;

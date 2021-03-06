@@ -10,19 +10,12 @@ namespace BigInt
 namespace
 {
 
-using predicatesType = std::tuple<std::function<Bit(const Bit&, const Bit&)>,
-                                std::function<Bit(const Bit&)>>;
-
-std::unordered_map<char, predicatesType> predicates
+using predicateType =  std::function<Bit(const Bit&, const Bit&)>;
+std::unordered_map<char, predicateType>predicates
 {
-    { '^', std::make_tuple([](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? 0 : 1; },
-                           [](const Bit& bit) { return bit == 0 ? 0 : 1; }) },
-
-    {'|', { std::make_tuple([](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 1; },
-            [](const Bit& bit) { return bit == 0 ? 0 : 1; }) } },
-
-    {'&', { std::make_tuple([](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 0; },
-            [](const Bit&) { return 0; }) } },
+    { '^', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ?      0 : 1; } },
+    { '|', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 1; } },
+    { '&', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 0; } },
 };
 
 }// namespace
@@ -35,72 +28,25 @@ class BigInt final
         Negative
     };
 
-    constexpr static const unsigned TransfromPredicate = 0;
-    constexpr static const unsigned ForEachPredicate = 1;
-
-    static BigInt binaryOperatorsWithoutAssignment(const BigInt& lhs, const BigInt& rhs, predicatesType predicates)
+    template<class T>
+    static void Transform(T&& lhs, const BinaryData& rhs, predicateType predicate, BinaryData& result)
     {
-        using Iterator = BinaryData::const_reverse_iterator;
-        BinaryData result(std::max(lhs.Number().size(), rhs.Number().size()));
-        Iterator firstStart;
-        Iterator firstEnd;
-        Iterator secondStart;
-        Iterator secondEnd;
-
-        if(lhs.count() <= rhs.count())
-        {
-            firstStart = lhs.Number().crbegin();
-            firstEnd = lhs.Number().crend();
-            secondStart = rhs.Number().crbegin();
-            secondStart = rhs.Number().crend();
-        }
-        else
-        {
-            firstStart = rhs.Number().crbegin();
-            firstEnd = rhs.Number().crend();
-            secondStart = lhs.Number().crbegin();
-            secondStart = lhs.Number().crend();
-        }
-
-        std::transform(firstStart, firstEnd, secondStart, std::back_inserter(result), std::get<TransfromPredicate>(predicates));
-        std::for_each(secondStart, secondStart, [&](const Bit& bit)
-        {
-            Bit newBit = std::get<ForEachPredicate>(predicates)(bit);
-            result.push_back(newBit);
-        });
-
-        return BigInt(result, 0, Sign::Positive); // TODO
+        if(lhs.size() <= rhs.size())
+            std::transform(lhs.crbegin(), lhs.crend(), rhs.crbegin(), result.rbegin(), predicate);
+        else // lhs.size() > rhs.size()
+            std::transform(rhs.crbegin(), rhs.crend(), lhs.crbegin(), result.rbegin(), predicate);
     }
 
-    void binaryOperatorsWithAssignment(BinaryData& This, const BigInt& rhs, predicatesType predicates)
+    static BigInt binaryOperators(const BinaryData& lhs, const BinaryData& rhs, predicateType predicate)
     {
-        using Iterator = BinaryData::reverse_iterator;
-        Iterator end = m_number.size() < rhs.Number().size() ?
-                    m_number.rend() :
-                    std::next(m_number.rbegin(), m_number.size() - rhs.Number().size());
+        BinaryData result(std::max(lhs.size(), rhs.size()));
+        Transform(lhs, rhs, predicate, result);
+        return BigInt(result, 0, Sign::Positive);
+    }
 
-        std::transform(This.rbegin(), end, rhs.Number().rbegin(), std::get<TransfromPredicate>(predicates));
-
-        Iterator restStart, restEnd;
-
-        if(end == This.rend())
-        {
-            size_t offset = rhs.Number().size() - m_number.size();
-            restStart = std::next(std::decay_t<BinaryData>(rhs.Number()).rbegin(), offset);
-            restEnd = std::decay_t<BinaryData>(rhs.Number()).rend();
-        }
-        else
-        {
-            size_t offset = This.size() - rhs.Number().size();
-            restStart = std::next(This.rbegin(), offset);
-            restEnd = This.rend();
-        }
-
-        std::for_each(restStart, restEnd, [&](const Bit& bit)
-        {
-            Bit newBit = std::get<ForEachPredicate>(predicates)(bit);
-            This.push_back(newBit);
-        });
+    void binaryOperators(BinaryData& lhs, const BinaryData& rhs, predicateType predicate)
+    {
+        Transform(lhs, rhs, predicate, lhs);
     }
 
     BinaryData m_number;
@@ -129,6 +75,7 @@ public:
     size_t count() const { return m_bitSet; }
     bool isPositive() const { return m_sign == Sign::Positive; }
     bool isNegative() const { return isPositive(); }
+    bool isZero() const { return *m_number.begin() == 0; }
 
     friend BigInt operator + (const BigInt& lhs, const BigInt& rhs)
     {
@@ -188,7 +135,7 @@ public:
 
     BigInt& operator -= (const BigInt& other)
     {
-        *this = operator-(*this, other);
+//        *this = operator-(*this, other);
         return *this;
     }
 
@@ -269,57 +216,94 @@ public:
 
     friend BigInt operator ^ (const BigInt& lhs, const BigInt& rhs)
     {
-        return binaryOperatorsWithoutAssignment(lhs, rhs, predicates['^']);
+        return binaryOperators(lhs.Number(), rhs.Number(), predicates['^']);
     }
 
     BigInt& operator ^= (const BigInt& other)
     {
-        binaryOperatorsWithAssignment(m_number, other, predicates['^']);
+        binaryOperators(m_number, other.Number(), predicates['^']);
         return *this;
     }
 
     friend BigInt operator | (const BigInt& lhs, const BigInt& rhs)
     {
-        return binaryOperatorsWithoutAssignment(lhs, rhs, predicates['|']);
+        return binaryOperators(lhs.Number(), rhs.Number(), predicates['|']);
     }
 
     BigInt& operator |= (const BigInt& other)
     {
-        binaryOperatorsWithAssignment(m_number, other, predicates['|']);
+        binaryOperators(m_number, other.Number(), predicates['|']);
         return *this;
     }
 
     friend BigInt operator & (const BigInt& lhs, const BigInt& rhs)
     {
-        return binaryOperatorsWithoutAssignment(lhs, rhs, predicates['&']);
+        return binaryOperators(lhs.Number(), rhs.Number(), predicates['&']);
     }
 
     BigInt& operator &= (const BigInt& other)
     {
-        binaryOperatorsWithAssignment(m_number, other, predicates['&']);
+        binaryOperators(m_number, other.Number(), predicates['&']);
         return *this;
+    }
+
+    BigInt& operator ~()
+    {
+        if(isZero())
+        {
+            *this = BigInt(BinaryData{1}, 1, Sign::Negative);
+            return *this;
+        }
+
+        if(isPositive())
+        {
+            m_sign = Sign::Negative;
+            Increment(m_number);
+        }
+        else
+        {
+
+            m_sign = Sign::Positive;
+            Decrement(m_number);
+        }
+        return *this;
+    }
+
+    BigInt& operator -()
+    {
+        m_sign = isPositive() ? Sign::Negative : Sign::Positive;
+        return *this;
+    }
+
+    BigInt operator !()
+    {
+        return isZero() ? BigInt(BinaryData{1}, 1, Sign::Positive) : BigInt();
     }
 
     friend BigInt operator << (const BigInt& lhs, const size_t offset)
     {
         BinaryData newResult = lhs.Number();
         leftShift(newResult, offset);
+        return BigInt(newResult, lhs.count(), Sign::Positive); // TODO: sign
     }
 
-    BigInt operator <<= (const size_t offset)
+    BigInt& operator <<= (const size_t offset)
     {
         leftShift(m_number, offset);
+        return *this;
     }
 
     friend BigInt operator >> (const BigInt& lhs, const size_t offset)
     {
         BinaryData newResult = lhs.Number();
         rightShift(newResult, offset);
+        return BigInt(newResult, lhs.count(), Sign::Positive); // TODO: sign and count bits
     }
 
-    BigInt operator >>= (const size_t offset)
+    BigInt& operator >>= (const size_t offset)
     {
         rightShift(m_number, offset);
+        return *this;
     }
 
 };

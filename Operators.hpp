@@ -40,6 +40,36 @@ void rightShift(BinaryData& data, const size_t loops = 1) noexcept
     }
 }
 
+void Increment(BinaryData& data)
+{
+    for(auto it = data.rbegin(); it != data.rend(); ++it)
+    {
+        if(*it == 0)
+        {
+            *it = 1;
+            break;
+        }
+        *it = 0;
+    }
+
+    if(*data.begin() == 0) data.push_front(1);
+}
+
+void Decrement(BinaryData& data)
+{
+    for(auto it = data.rbegin(); it != data.rend(); ++it)
+    {
+        if(*it == 1)
+        {
+            *it = 0;
+            break;
+        }
+        *it = 1;
+    }
+
+    // TODO: remove 0
+}
+
 template<class Iterator>
 constexpr void isRandomAccessIterator()
 {
