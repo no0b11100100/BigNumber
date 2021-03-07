@@ -449,3 +449,34 @@ private:
     }
 
 } multiplication;
+
+struct Square
+{
+    BinaryData operator()(BinaryData number)
+    {
+        assert(number.size() != 0);
+        BinaryData tmp(number.size()-1);
+        BinaryData result;
+        result.push_front(1);
+
+        while(!isZero(number))
+        {
+            if( auto[add, bits] = addition(result, tmp); less(number, add ) )
+            {
+                auto [sub, ignore] = subtraction(result, tmp);
+                std::tie(number, std::ignore) =  subtraction(number, sub);
+                rightShift(result);
+                std::tie(result, std::ignore) = addition(result, tmp);
+            }
+            else rightShift(result);
+
+            rightShift(tmp, 2);
+        }
+
+        return result;
+    }
+
+private:
+    bool isZero(const BinaryData& number) const { return !number.empty() && *number.cbegin() == 0; }
+
+} square;

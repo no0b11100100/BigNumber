@@ -28,25 +28,41 @@ class BigInt final
         Negative
     };
 
-    template<class T>
-    static void Transform(T&& lhs, const BinaryData& rhs, predicateType predicate, BinaryData& result)
+    template<class Predicate>
+    static BigInt Transform(const BigInt& lhs, const BigInt& rhs, Predicate predicate)
     {
-        if(lhs.size() <= rhs.size())
-            std::transform(lhs.crbegin(), lhs.crend(), rhs.crbegin(), result.rbegin(), predicate);
-        else // lhs.size() > rhs.size()
-            std::transform(rhs.crbegin(), rhs.crend(), lhs.crbegin(), result.rbegin(), predicate);
+        BinaryData result;
+        static auto forEach = [&](const Bit& bit) { result.push_front(bit); };
+        if(lhs.count() < rhs.count())
+        {
+            std::transform(lhs.Number().crbegin(), lhs.Number().crend(), rhs.Number().crbegin(), std::front_inserter(result), predicate);
+            auto it = std::next( rhs.Number().crbegin(), lhs.count() );
+            std::for_each(it, rhs.Number().crend(), forEach);
+        }
+        else if(lhs.count() > rhs.count())
+        {
+            std::transform(rhs.Number().crbegin(), rhs.Number().crend(), lhs.Number().crbegin(), std::front_inserter(result), predicate);
+            auto it = std::next( lhs.Number().crbegin(), rhs.count() );
+            std::for_each(it, lhs.Number().crend(), forEach);
+        }
+        else
+            std::transform(lhs.Number().crbegin(), lhs.Number().crend(), rhs.Number().crbegin(), std::front_inserter(result), predicate);
+
+        return BigInt(result, 0, Sign::Positive); // TODO
     }
 
-    static BigInt binaryOperators(const BinaryData& lhs, const BinaryData& rhs, predicateType predicate)
+    template<class Predicate>
+    static void Transform(BinaryData& number, const BigInt& other, Predicate predicate)
     {
-        BinaryData result(std::max(lhs.size(), rhs.size()));
-        Transform(lhs, rhs, predicate, result);
-        return BigInt(result, 0, Sign::Positive);
-    }
+        if(number.size() <= other.count())
+        {
+            std::transform(number.crbegin(), number.crend(), other.Number().crbegin(), number.rbegin(), predicate);
+            auto it = std::next( other.Number().crbegin(), number.size() );
+            std::for_each(it, other.Number().crend(), [&](const Bit& bit) { number.push_front(bit); });
+        }
+        else
+            std::transform(other.Number().crbegin(), other.Number().crend(), number.crbegin(), number.rbegin(), predicate);
 
-    void binaryOperators(BinaryData& lhs, const BinaryData& rhs, predicateType predicate)
-    {
-        Transform(lhs, rhs, predicate, lhs);
     }
 
     BinaryData m_number;
@@ -75,7 +91,11 @@ public:
     size_t count() const { return m_bitSet; }
     bool isPositive() const { return m_sign == Sign::Positive; }
     bool isNegative() const { return isPositive(); }
+    bool isEven() const { return *m_number.rbegin() == 0; }
+    bool isOdd() const { return !isEven(); }
     bool isZero() const { return *m_number.begin() == 0; }
+    void MakePositive() { m_sign = Sign::Positive; }
+    void MakeNegative() { m_sign = Sign::Negative; }
 
     friend BigInt operator + (const BigInt& lhs, const BigInt& rhs)
     {
@@ -216,34 +236,34 @@ public:
 
     friend BigInt operator ^ (const BigInt& lhs, const BigInt& rhs)
     {
-        return binaryOperators(lhs.Number(), rhs.Number(), predicates['^']);
+        return Transform(lhs, rhs, predicates['^']);
     }
 
     BigInt& operator ^= (const BigInt& other)
     {
-        binaryOperators(m_number, other.Number(), predicates['^']);
+        Transform(m_number, other, predicates['^']);
         return *this;
     }
 
     friend BigInt operator | (const BigInt& lhs, const BigInt& rhs)
     {
-        return binaryOperators(lhs.Number(), rhs.Number(), predicates['|']);
+        return Transform(lhs, rhs, predicates['|']);
     }
 
     BigInt& operator |= (const BigInt& other)
     {
-        binaryOperators(m_number, other.Number(), predicates['|']);
+        Transform(m_number, other, predicates['|']);
         return *this;
     }
 
     friend BigInt operator & (const BigInt& lhs, const BigInt& rhs)
     {
-        return binaryOperators(lhs.Number(), rhs.Number(), predicates['&']);
+        return Transform(lhs, rhs, predicates['&']);
     }
 
     BigInt& operator &= (const BigInt& other)
     {
-        binaryOperators(m_number, other.Number(), predicates['&']);
+        Transform(m_number, other, predicates['&']);
         return *this;
     }
 
@@ -307,6 +327,41 @@ public:
     }
 
 };
+
+// TODO
+namespace Math
+{
+
+void abs(BigInt& number)
+{
+    if(number.isNegative()) number.MakePositive();
+}
+
+std::vector<BigInt> factorize()
+{}
+
+BigInt fibonacci(std::size_t nElem)
+{}
+
+BigInt factorial(std::size_t nElem)
+{}
+
+BigInt gcd(const BigInt& a, const BigInt& b)
+{
+    if(a == b) return a;
+    if(a.isZero()) return b;
+    if(b.isZero()) return a;
+
+    if(a.isEven())
+        return b.isOdd() ? gcd(a>>1, b) : (gcd(a>>1, b>>1) << 1);
+}
+
+BigInt lcm(const BigInt& a, const BigInt& b)
+{
+    return (a*b) / gcd(a,b);
+}
+
+} // namespace Math
 
 } // namespace BigInt
 
