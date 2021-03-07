@@ -33,16 +33,16 @@ class BigInt final
     {
         BinaryData result;
         static auto forEach = [&](const Bit& bit) { result.push_front(bit); };
-        if(lhs.count() < rhs.count())
+        if(lhs.bit() < rhs.bit())
         {
             std::transform(lhs.Number().crbegin(), lhs.Number().crend(), rhs.Number().crbegin(), std::front_inserter(result), predicate);
-            auto it = std::next( rhs.Number().crbegin(), lhs.count() );
+            auto it = std::next( rhs.Number().crbegin(), lhs.bit() );
             std::for_each(it, rhs.Number().crend(), forEach);
         }
-        else if(lhs.count() > rhs.count())
+        else if(lhs.bit() > rhs.bit())
         {
             std::transform(rhs.Number().crbegin(), rhs.Number().crend(), lhs.Number().crbegin(), std::front_inserter(result), predicate);
-            auto it = std::next( lhs.Number().crbegin(), rhs.count() );
+            auto it = std::next( lhs.Number().crbegin(), rhs.bit() );
             std::for_each(it, lhs.Number().crend(), forEach);
         }
         else
@@ -54,7 +54,7 @@ class BigInt final
     template<class Predicate>
     static void Transform(BinaryData& number, const BigInt& other, Predicate predicate)
     {
-        if(number.size() <= other.count())
+        if(number.size() <= other.bit())
         {
             std::transform(number.crbegin(), number.crend(), other.Number().crbegin(), number.rbegin(), predicate);
             auto it = std::next( other.Number().crbegin(), number.size() );
@@ -89,6 +89,8 @@ public:
 
     const BinaryData& Number() const { return m_number; }
     size_t count() const { return m_bitSet; }
+    size_t bit() const { return m_number.size(); }
+    bool is2Pow() const { return m_bitSet == 1; }
     bool isPositive() const { return m_sign == Sign::Positive; }
     bool isNegative() const { return isPositive(); }
     bool isEven() const { return *m_number.rbegin() == 0; }
@@ -326,42 +328,144 @@ public:
         return *this;
     }
 
+    BigInt& operator++()
+    {
+        Increment(m_number);
+        return *this;
+    }
+
+    BigInt& operator--()
+    {
+        Decrement(m_number);
+        return *this;
+    }
+
+    BigInt operator++(int)
+    {
+        auto tmp = *this;
+        Increment(m_number);
+        return tmp;
+    }
+
+    BigInt operator--(int)
+    {
+        auto tmp = *this;
+        Decrement(m_number);
+        return tmp;
+    }
+
+    static void abs(BigInt& number)
+    {
+        if(number.isNegative()) number.MakePositive();
+    }
+
+    static BigInt Pow(const BigInt& number, size_t pow)
+    {
+        BigInt result;
+        static auto routingTo2Pow = [](size_t pow){
+            pow--;
+            pow |= pow >> 1;
+            pow |= pow >> 2;
+            pow |= pow >> 4;
+            pow |= pow >> 8;
+            pow |= pow >> 16;
+            pow |= pow >> 32;
+            return ++pow;
+        };
+
+        while(pow)
+        {
+            size_t routing = routingTo2Pow(pow);
+            BigInt tmpRes = number;
+            for(size_t i {0}; i < routing; ++i)
+                tmpRes *= tmpRes;
+
+            result += tmpRes;
+            pow -= routing;
+        }
+
+        return result;
+    }
+
+    static std::vector<BigInt> factorize(BigInt number)
+    {
+        auto isOne = [&](const BinaryData& data)
+                     { return data.size() == 1 && *data.begin() == 1; };
+
+        std::vector<BigInt> factors;
+        for(BigInt i(BinaryData({1,0}), 1, Sign::Positive); i <= BigInt(square(number.Number()), 0, Sign::Positive); ++i)
+        {
+            while((number%i).isZero())
+            {
+                factors.push_back(i);
+                number /= i;
+            }
+        }
+
+        if(isOne(number.Number())) factors.push_back(number);
+        return factors;
+    }
+
+    static BigInt fibonacci(std::size_t nElem)
+    {}
+
+    static BigInt factorial(std::size_t nElem)
+    {
+        if(nElem == 1 || nElem == 0)
+            return BigInt(BinaryData(1), 1, Sign::Positive);
+
+        bool handleOdd {false};
+        size_t uptoNumber {nElem};
+
+        BinaryData two(2);
+
+        if((nElem & 1) == 1)
+        {
+            --uptoNumber;
+            handleOdd = true;
+        }
+
+        BigInt nextSum(uptoNumber, Base::Decimal);
+        BigInt nextMulti(uptoNumber, Base::Decimal);
+        BigInt factorial(BinaryData(1), 1, Sign::Positive);
+
+        while(less(nextSum.Number(), two)) // nextSum >= 2
+        {
+            factorial *= nextMulti;
+//            nextSum -= 2;
+            nextMulti += nextSum;
+        }
+
+//        if (handleOdd) factorial *= nElem;
+
+        return factorial;
+    }
+
+    static BigInt gcd(const BigInt& u, const BigInt& v)
+    {
+        if (u == v) return u;
+        if (u.isZero()) return v;
+        if (v.isZero()) return u;
+
+        if (u.isEven())
+        {
+            if (v.isOdd()) return gcd(u>>1, v);
+            else return gcd(u>>1, v>>1) << 1;
+        }
+        else
+        {
+            if (v.isEven()) return gcd(u, v>>1);
+            if (u > v) return gcd((u - v)>>1, v);
+            else return gcd((v - u)>>1, u);
+        }
+    }
+
+    static BigInt lcm(const BigInt& a, const BigInt& b)
+    {
+        return (a*b) / gcd(a,b);
+    }
+
 };
-
-// TODO
-namespace Math
-{
-
-void abs(BigInt& number)
-{
-    if(number.isNegative()) number.MakePositive();
-}
-
-std::vector<BigInt> factorize()
-{}
-
-BigInt fibonacci(std::size_t nElem)
-{}
-
-BigInt factorial(std::size_t nElem)
-{}
-
-BigInt gcd(const BigInt& a, const BigInt& b)
-{
-    if(a == b) return a;
-    if(a.isZero()) return b;
-    if(b.isZero()) return a;
-
-    if(a.isEven())
-        return b.isOdd() ? gcd(a>>1, b) : (gcd(a>>1, b>>1) << 1);
-}
-
-BigInt lcm(const BigInt& a, const BigInt& b)
-{
-    return (a*b) / gcd(a,b);
-}
-
-} // namespace Math
 
 } // namespace BigInt
 

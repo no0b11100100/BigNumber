@@ -477,6 +477,6 @@ struct Square
     }
 
 private:
-    bool isZero(const BinaryData& number) const { return !number.empty() && *number.cbegin() == 0; }
+    bool isZero(const BinaryData& number) const { return number.size() == 1 && *number.cbegin() == 0; }
 
 } square;
