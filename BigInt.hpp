@@ -65,6 +65,10 @@ class BigInt final
         m_state(number, bits, sign)
     {}
 
+    BigInt(const State& state):
+        m_state{state}
+    {}
+
 public:
     BigInt():
         m_state{State()}
@@ -137,9 +141,28 @@ public:
         }
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator + (const BigInt& lhs, T rhs)
+    {
+        return operator+(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator + (T lhs, const BigInt& rhs)
+    {
+        return operator+(BigInt(toBinary(lhs)), rhs);
+    }
+
     BigInt& operator += (const BigInt& other)
     {
         *this = operator+(*this, other);
+        return *this;
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    BigInt& operator += (T other)
+    {
+        *this = operator+(*this, BigInt(toBinary(other)));
         return *this;
     }
 
@@ -158,9 +181,28 @@ public:
         return BigInt(result, bits, Sign::Negative);
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator - (const BigInt& lhs, T rhs)
+    {
+        return operator-(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator - (T lhs, const BigInt& rhs)
+    {
+        return operator-(BigInt(toBinary(lhs)), rhs);
+    }
+
     BigInt& operator -= (const BigInt& other)
     {
-//        *this = operator-(*this, other);
+        *this = operator-(*this, other);
+        return *this;
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    BigInt& operator -= (T other)
+    {
+        *this = operator-(*this, BigInt(toBinary(other)));
         return *this;
     }
 
@@ -177,9 +219,28 @@ public:
         return BigInt(result, bits, sign);
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator * (const BigInt& lhs, T rhs)
+    {
+        return operator*(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator * (T lhs, const BigInt& rhs)
+    {
+        return operator*(BigInt(toBinary(lhs)), rhs);
+    }
+
     BigInt& operator *= (const BigInt& other)
     {
         *this = operator*(*this, other);
+        return *this;
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    BigInt& operator *= (T other)
+    {
+        *this = operator*(*this, BigInt(toBinary(other)));
         return *this;
     }
 
@@ -195,18 +256,49 @@ public:
         return BigInt(result, bits, sign);
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator / (const BigInt& lhs, T rhs)
+    {
+        return operator/(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator / (T lhs, const BigInt& rhs)
+    {
+        return operator/(BigInt(toBinary(lhs)), rhs);
+    }
+
     BigInt& operator /= (const BigInt& other)
     {
         *this = operator/(*this, other);
         return *this;
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    BigInt& operator /= (T other)
+    {
+        *this = operator/(*this, BigInt(toBinary(other)));
+        return *this;
+    }
+
     friend BigInt operator % (const BigInt& lhs, const BigInt& rhs)
     {
-        if(lhs < rhs) return rhs;
-        Sign sign;
+        if(lhs < rhs) return lhs;
+        Sign sign = lhs.isNegative() ? Sign::Negative : Sign::Positive;
         auto [result, bits] = division(lhs.Number(), rhs.Number(), Division::Mode::Mod);
         return BigInt(result, bits, sign);
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator % (const BigInt& lhs, T rhs)
+    {
+        return operator%(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator % (T lhs, const BigInt& rhs)
+    {
+        return operator%(BigInt(toBinary(lhs)), rhs);
     }
 
     BigInt& operator %= (const BigInt& other)
@@ -215,9 +307,31 @@ public:
         return *this;
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    BigInt& operator %= (T other)
+    {
+        *this = operator%(*this, BigInt(toBinary(other)));
+        return *this;
+    }
+
     friend bool operator < (const BigInt& lhs, const BigInt& rhs)
     {
+        if(lhs.isPositive() && rhs.isNegative()) return false;
+        if(lhs.isNegative() && rhs.isPositive()) return true;
+        if(lhs.isNegative() && rhs.isNegative()) return greater(lhs.Number(), rhs.Number());
         return less(lhs.Number(), rhs.Number());
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator < (const BigInt& lhs, T rhs)
+    {
+        return operator <(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator < (T lhs, const BigInt& rhs)
+    {
+        return operator <(BigInt(toBinary(lhs)), rhs);
     }
 
     friend bool operator <= (const BigInt& lhs, const BigInt& rhs)
@@ -225,9 +339,36 @@ public:
         return greater(rhs.Number(), lhs.Number());
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator <= (const BigInt& lhs, T rhs)
+    {
+        return operator <=(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator <= (T lhs, const BigInt& rhs)
+    {
+        return operator <=(BigInt(toBinary(lhs)), rhs);
+    }
+
     friend bool operator > (const BigInt& lhs, const BigInt& rhs)
     {
+        if(lhs.isPositive() && rhs.isNegative()) return true;
+        if(lhs.isNegative() && rhs.isPositive()) return false;
+        if(lhs.isNegative() && rhs.isNegative()) return less(lhs.Number(), rhs.Number());
         return greater(lhs.Number(), rhs.Number());
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator > (const BigInt& lhs, T rhs)
+    {
+        return operator >(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator > (T lhs, const BigInt& rhs)
+    {
+        return operator >(BigInt(toBinary(lhs)), rhs);
     }
 
     friend bool operator >= (const BigInt& lhs, const BigInt& rhs)
@@ -235,9 +376,34 @@ public:
         return less(rhs.Number(), lhs.Number());
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator >= (const BigInt& lhs, T rhs)
+    {
+        return operator >=(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator >= (T lhs, const BigInt& rhs)
+    {
+        return operator >=(BigInt(toBinary(lhs)), rhs);
+    }
+
     friend bool operator == (const BigInt& lhs, const BigInt& rhs)
     {
+        if(lhs.sign() != rhs.sign()) return false;
         return equal(lhs.Number(), rhs.Number());
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator == (const BigInt& lhs, T rhs)
+    {
+        return operator ==(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator == (T lhs, const BigInt& rhs)
+    {
+        return operator ==(BigInt(toBinary(lhs)), rhs);
     }
 
     friend bool operator != (const BigInt& lhs, const BigInt& rhs)
@@ -245,9 +411,33 @@ public:
         return !operator ==(lhs, rhs);
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator != (const BigInt& lhs, T rhs)
+    {
+        return operator !=(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend bool operator != (T lhs, const BigInt& rhs)
+    {
+        return operator !=(BigInt(toBinary(lhs)), rhs);
+    }
+
     friend BigInt operator ^ (const BigInt& lhs, const BigInt& rhs)
     {
         return Transform(lhs, rhs, predicates['^']);
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator ^ (const BigInt& lhs, T rhs)
+    {
+        return operator^(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator ^ (T lhs, const BigInt& rhs)
+    {
+        return operator^(BigInt(toBinary(lhs)), rhs);
     }
 
     BigInt& operator ^= (const BigInt& other)
@@ -256,9 +446,27 @@ public:
         return *this;
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    BigInt& operator ^= (T other)
+    {
+        return operator^=(BigInt(toBinary(other)));
+    }
+
     friend BigInt operator | (const BigInt& lhs, const BigInt& rhs)
     {
         return Transform(lhs, rhs, predicates['|']);
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator | (const BigInt& lhs, T rhs)
+    {
+        return operator|(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator | (T lhs, const BigInt& rhs)
+    {
+        return operator|(BigInt(toBinary(lhs)), rhs);
     }
 
     BigInt& operator |= (const BigInt& other)
@@ -267,15 +475,39 @@ public:
         return *this;
     }
 
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    BigInt& operator |= (T other)
+    {
+        return operator|=(BigInt(toBinary(other)));
+    }
+
     friend BigInt operator & (const BigInt& lhs, const BigInt& rhs)
     {
         return Transform(lhs, rhs, predicates['&']);
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator & (const BigInt& lhs, T rhs)
+    {
+        return operator&(lhs, BigInt(toBinary(rhs)));
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    friend BigInt operator & (T lhs, const BigInt& rhs)
+    {
+        return operator&(BigInt(toBinary(lhs)), rhs);
     }
 
     BigInt& operator &= (const BigInt& other)
     {
         Transform(m_state.number, other, predicates['&']);
         return *this;
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>>>
+    BigInt& operator &= (T other)
+    {
+        return operator&=(BigInt(toBinary(other)));
     }
 
     BigInt& operator ~()
@@ -339,6 +571,8 @@ public:
 
     BigInt& operator++()
     {
+        if(isNegative())
+            Decrement(m_state.number, m_state.bitSet);
         Increment(m_state.number, m_state.bitSet);
         return *this;
     }
@@ -358,6 +592,8 @@ public:
     BigInt operator++(int)
     {
         auto tmp = *this;
+        if(isNegative())
+            Decrement(m_state.number, m_state.bitSet);
         Increment(m_state.number, m_state.bitSet);
         return tmp;
     }
@@ -514,4 +750,3 @@ public:
 };
 
 } // namespace BigInt
-

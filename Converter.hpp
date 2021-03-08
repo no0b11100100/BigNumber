@@ -70,7 +70,7 @@ struct State
 };
 
 template<typename T>
-constexpr bool checkType()
+constexpr bool is_integer()
 {
     using Type = std::decay_t<T>;
     return std::is_same_v<Type, int> ||
@@ -116,7 +116,7 @@ private:
                 == number.cend();
     }
 
-    template< class T, class = typename std::enable_if_t< checkType<T>() > >
+    template< class T, class = typename std::enable_if_t< is_integer<T>() > >
     bool isValid(T) { return true; }
 
 } validator;
