@@ -10,6 +10,13 @@
 #include <algorithm>
 #include <execution>
 #include <cassert>
+#include <functional>
+
+enum class Sign : bool
+{
+    Positive,
+    Negative
+};
 
 std::unordered_map<std::string, char> binaryCast
 {
@@ -42,38 +49,28 @@ std::unordered_map<std::string, char> binaryCast
 // TODO: replace any where -> dubplicate in Operators.hpp
 using Bit = bool;
 using BinaryData = std::deque<Bit>;
-using InitList = std::initializer_list<Bit>;
-using ArrayList = std::array<InitList, 2>;
 
-std::unordered_map<char, ArrayList> hexOctalCast
+struct State
 {
-    { '0', { InitList{0,0,0,0}, {0,0,0} } },
-    { '1', { InitList{0,0,0,1}, {0,0,1} } },
-    { '2', { InitList{0,0,1,0}, {0,1,0} } },
-    { '3', { InitList{0,0,1,1}, {0,1,1} } },
-    { '4', { InitList{0,1,0,0}, {1,0,0} } },
-    { '5', { InitList{0,1,0,1}, {1,0,1} } },
-    { '6', { InitList{0,1,1,0}, {1,1,0} } },
-    { '7', { InitList{0,1,1,1}, {1,1,1} } },
-    { '8', { InitList{1,0,0,0}, {} } },
-    { '9', { InitList{1,0,0,1}, {} } },
-    { 'A', { InitList{1,0,1,0}, {} } },
-    { 'B', { InitList{1,0,1,1}, {} } },
-    { 'C', { InitList{1,1,0,0}, {} } },
-    { 'D', { InitList{1,1,0,1}, {} } },
-    { 'E', { InitList{1,1,1,0}, {} } },
-    { 'F', { InitList{1,1,1,1}, {} } },
-};
-enum class Base
-{
-    Binary,
-    Octal,
-    Decimal,
-    Hexadecimal,
+    State(const BinaryData& number, size_t bits = 0, Sign sign = Sign::Positive) :
+        number{number},
+        bitSet{bits},
+        sign{sign}
+    {}
+
+    State() :
+        number{0},
+        bitSet{0},
+        sign{Sign::Positive}
+    {}
+
+    BinaryData number;
+    std::size_t bitSet;
+    Sign sign;
 };
 
 template<typename T>
-constexpr bool is_allow_primary()
+constexpr bool checkType()
 {
     using Type = std::decay_t<T>;
     return std::is_same_v<Type, int> ||
@@ -88,8 +85,6 @@ constexpr bool is_allow_primary()
             std::is_same_v<Type, long long> ||
             std::is_same_v<Type, unsigned long long> ||
             std::is_same_v<Type, signed long long> ||
-            std::is_same_v<Type, bool> ||
-            std::is_same_v<Type, char> ||
             std::is_same_v<Type, uint8_t> ||
             std::is_same_v<Type, uint16_t> ||
             std::is_same_v<Type, uint32_t> ||
@@ -97,96 +92,33 @@ constexpr bool is_allow_primary()
             std::is_same_v<Type, int8_t> ||
             std::is_same_v<Type, int16_t> ||
             std::is_same_v<Type, int32_t> ||
-            std::is_same_v<Type, int64_t> ||
-            std::is_same_v<Type, std::size_t>;
-}
-
-template<class Container>
-constexpr bool is_allow_container()
-{
-    if constexpr(is_allow_primary<Container>()) return false;
-    else {
-        using ValueType = typename std::decay_t<Container>::value_type;
-        return std::is_same_v<Container, std::string> ||
-                (std::is_same_v<Container, std::vector<ValueType>> && is_allow_primary<ValueType>() ) ||
-                (std::is_same_v<Container, std::list<ValueType>> && is_allow_primary<ValueType>() ) ||
-                (std::is_same_v<Container, std::deque<ValueType>> && is_allow_primary<ValueType>() ) ||
-                (std::is_same_v<Container, std::forward_list<ValueType>> && is_allow_primary<ValueType>() ) ||
-                (std::is_same_v<Container, std::initializer_list<ValueType>> && is_allow_primary<ValueType>() ) ||
-                (std::is_same_v<Container, std::array<ValueType, sizeof (Container)/sizeof(ValueType)>> && is_allow_primary<ValueType>() );
-    }
+            std::is_same_v<Type, int64_t>;
 }
 
 struct Validator
 {
     template<class T>
-    bool operator()(T&& value, Base base)
+    bool operator()(T&& value)
     {
-        return isValid(value, base);
+        return isValid(std::forward<T>(value));
     }
 
 private:
-    template<class T>
-    bool validation(T&& value, Base base)
-    {
-        assert (static_cast<unsigned>(base) < static_cast<unsigned>(Base::Hexadecimal));
-        unsigned validatedValue;
-        if(std::is_same_v<std::decay_t<T>, char>)
-        {
-            if(base == Base::Hexadecimal)
-            {
-                if(value > '9')
-                    validatedValue = static_cast<unsigned>(std::tolower(value) - 'a');
-                else
-                    validatedValue = static_cast<unsigned>(value);
-            }
-            else
-            {
-                validatedValue = static_cast<unsigned>(value);
-            }
-        }
 
-        return validatedValue >= limits[base].first &&
-                  validatedValue <= limits[base].second;
+    static constexpr const char min = '0';
+    static constexpr const char max = '9';
+
+    bool isValid(const std::string& number)
+    {
+        auto validate = [min=min, max=max](const char& symbol) -> bool { return symbol > min && symbol <= max; };
+        return std::find_if_not(std::execution::par_unseq, cbegin(number), cend(number),
+                                [&](const char& value){ return validate(value); })
+                == number.cend();
     }
 
-    template< class TContainer, class = typename std::enable_if_t< is_allow_container<TContainer>() >>
-    bool isValid(TContainer&& container, Base base)
-    {
-        using valueType = typename std::decay_t<TContainer>::value_type;
-        return std::find_if_not(std::execution::par_unseq, cbegin(container), cend(container),
-                                [&](const valueType& value){ return validation(value, base); })
-                == container.cend();
-    }
+    template< class T, class = typename std::enable_if_t< checkType<T>() > >
+    bool isValid(T) { return true; }
 
-    template< class T, class = typename std::enable_if_t< is_allow_primary<T>()> >
-    bool isValid(T number, Base base)
-    {
-        if(base == Base::Hexadecimal)
-        {
-            int validatedValue;
-            if(std::is_same_v<char, std::decay_t<T>>)
-            {
-                if(number > '9')
-                    validatedValue = static_cast<int>(std::tolower(number) - 'a');
-                else
-                    validatedValue = static_cast<int>(number);
-            } else
-                validatedValue = number;
-
-            return validatedValue >= limits[base].first &&
-                      validatedValue <= limits[base].second;
-        }
-
-        return true;
-    }
-
-    std::unordered_map<Base, std::pair<unsigned, unsigned>> limits {
-        { Base::Binary, {0, 1} },
-        { Base::Octal, {0, 7} },
-        { Base::Decimal, {0, 9} },
-        { Base::Hexadecimal, {0, 15} },
-    };
 } validator;
 
 /**
@@ -204,15 +136,15 @@ class FromBinary
         std::string chan(N, '0');
 
         for(auto chanIt = rbegin(chan); chanIt != chan.rend() || it != end; ++it, ++chanIt)
-            *chanIt = *it-'0';
+            *chanIt = *it;
 
         return binaryCast[chan];
     }
 
-    template<class TContainer, size_t chanSize>
-    TContainer convertHexOrOctalToBinary(const BinaryData& binary)
+    template<size_t chanSize>
+    std::string convertHexOrOctalToBinary(const BinaryData& binary)
     {
-        TContainer result;
+        std::string result;
         result.reserve(binary.size() / chanSize);
         for(auto it = binary.crbegin(); it != binary.crend(); it += chanSize)
         {
@@ -223,33 +155,37 @@ class FromBinary
         return result;
     }
 
-    template<class T>
-    void aditionDecimal(std::deque<T>& result, const std::string& addendum)
+    void aditionDecimal(std::deque<char>& result, const std::string& addendum)
     {
+        if(result.empty()) result.push_back(0);
         assert(result.size() <= addendum.size());
         size_t transfer = 0;
-        auto toInt = [](const auto& symbol) -> size_t { return static_cast<size_t>(symbol); };
+        auto toInt = [](const char& symbol) -> unsigned { return static_cast<unsigned>(symbol); };
+        auto toChar = [](const unsigned& digit) -> char { return static_cast<char>(digit); };
         std::transform(result.rbegin(), result.rend(), addendum.crbegin(), result.rbegin(),
-                       [&](const T& resultValue, const char* addendumValue) -> T
+                       [&](const char& resultValue, const char& addendumValue) -> char
         {
-            size_t newValue = toInt(resultValue) + toInt(*addendumValue) + transfer;
+            assert(transfer <= 9);
+            unsigned newValue = toInt(resultValue) + toInt(addendumValue) + transfer;
+            assert(newValue < 100);
             transfer /= 10;
-            return static_cast<T>(newValue % 10);
+            return toChar(newValue % 10);
         });
 
+        assert(transfer <= 9);
         if(transfer != 0)
-            result.push_front(static_cast<T>(transfer));
-
+            result.push_front(toChar(transfer));
     }
 
     void multiplicationBy2(std::string& result)
     {
         size_t transfer = 0;
-        auto charToInt = [](const char& symbol) -> size_t { return static_cast<size_t>(symbol); };
-        auto intToChar = [](const size_t& number) -> char { return static_cast<char>(number); };
+        auto charToInt = [](const char& symbol) -> unsigned { return static_cast<unsigned>(symbol); };
+        auto intToChar = [](const unsigned& number) -> char { return static_cast<char>(number); };
         std::transform(result.rbegin(), result.rend(), result.begin(),
                        [&transfer, &charToInt, &intToChar](const char& digit) -> char
         {
+            assert(transfer <= 9);
             size_t newValue = charToInt(digit)*2 + transfer;
             transfer /= 10;
             return intToChar(newValue % 10);
@@ -261,49 +197,40 @@ class FromBinary
     }
 
 public:
-
-    template<class TContainer>
-    TContainer ToBinary(const BinaryData& binary)
+    std::string ToBinary(const BinaryData& binary)
     {
-        TContainer result;
+        std::string result;
         result.reserve(binary.size());
         std::copy(binary.crbegin(), binary.crend(), std::back_inserter(result));
         return result;
     }
 
-    template<class TContainer>
-    TContainer ToOctal(const BinaryData& binary)
+    std::string ToOctal(const BinaryData& binary)
     {
-        return convertHexOrOctalToBinary<TContainer, m_octalChanSize>(binary);
+        return convertHexOrOctalToBinary<m_octalChanSize>(binary);
     }
 
-    template<class TContainer>
-    TContainer ToDecimal(const BinaryData& binary)
+    std::string ToDecimal(const BinaryData& binary)
     {
-        using ValueType = typename std::decay_t<TContainer>::value_type;
-        static_assert (std::is_same_v<ValueType, bool>,
-                "for decimal number bool is not allowed, bool only for binary number");
-        std::deque<ValueType> tempResult(0);
-        tempResult.reserve(binary.size() / 5);
+        std::deque<char> tempResult(binary.size() / 4);
         std::string degree = "1";
 
         for(auto it = binary.crbegin(); it != binary.crend(); ++it)
         {
-            if(*it == 1) additionDecimal(tempResult, degree);
+            if(*it == 1) aditionDecimal(tempResult, degree);
             multiplicationBy2(degree);
         }
 
-        TContainer result;
+        std::string result;
         result.reserve(tempResult.size());
         std::move(tempResult.begin(), tempResult.end(), result.begin());
 
         return result;
     }
 
-    template<class TContainer>
-    TContainer ToHex(const BinaryData& binary)
+    std::string ToHex(const BinaryData& binary)
     {
-        return convertHexOrOctalToBinary<TContainer, m_HexChanSize>(binary);
+        return convertHexOrOctalToBinary<m_HexChanSize>(binary);
     }
 
 } fromBinary;
@@ -313,141 +240,65 @@ public:
  */
 class ToBinary
 {
-    constexpr static const unsigned short octalChanSize = 3;
-    constexpr static const unsigned short hexChanSize = 4;
-
-    template<size_t N>
-    std::initializer_list<Bit> makeChan(char symbol)
-    {
-        static_assert (N == 3 || N == 4, "chan size must be 3 or 4");
-        return hexOctalCast[symbol][hexChanSize-N];
-    }
-
-    template<size_t N, class TContainer,
-             class = typename std::enable_if_t< is_allow_container<TContainer>() >>
-    BinaryData convertHexOrOctalToBinary(const TContainer& container)
-    {
-        BinaryData result;
-        for(const auto& symbol : container)
-        {
-            auto bitsList = makeChan<N>(symbol);
-            std::move(bitsList.begin(), bitsList.end(), std::back_inserter(result));
-        }
-        return result;
-    }
-
-    template<size_t N, class T,
-             class = typename std::enable_if_t< is_allow_primary<T>() >>
-    BinaryData convertHexOrOctalToBinary(T number)
-    {
-        return BinaryData(makeChan<N>(static_cast<char>(number)));
-    }
-
     /**
      * Division by 2
      * @param number
      * @return remainder
      */
-    template<class TContainer>
-    Bit getRemainder(TContainer&& number)
+    Bit getRemainder(std::string& number)
     {
         unsigned int remainder = 0;
         unsigned int dividend;
         unsigned int quot;
-        using ValueTypeReference = typename std::decay_t<TContainer>::value_type;
-        std::for_each(number.begin(), number.end(), [&](ValueTypeReference value)
+        std::transform(number.begin(), number.end(), number.begin(), [&](const char& value)
         {
             dividend = (remainder * 10) + value;
             remainder = dividend & 1;
             quot = dividend / 2;
-            value = quot;
+            return quot;
         });
 
         return static_cast<Bit>(remainder);
     };
 
-    template<class TContainer, class = typename std::enable_if_t< is_allow_container<TContainer>() >>
-    BinaryData toBinary(const TContainer& container)
+    State fromDecimal(std::string number)
     {
         BinaryData binary;
-        std::copy(container.cbegin(), container.cend(), std::back_inserter(binary));
-        return binary;
-        if(is_allow_primary<TContainer>())
+        size_t bits;
+        Sign sign = static_cast<int>(*number.begin()) < 0 ? Sign::Negative : Sign::Positive;
+        while(!number.empty())
         {
-            if(unsigned bit = static_cast<unsigned>(container); bit <= 1)
-                binary.push_back(bit);
-        }
-    }
-
-    template<class T, class = typename std::enable_if_t< is_allow_primary<T>() >>
-    BinaryData toBinary(T bit)
-    {
-        if(validator(bit, Base::Binary))
-            return BinaryData(static_cast<Bit>(bit));
-        return BinaryData();
-    }
-
-    template<class TContainer>
-    BinaryData toOctal(TContainer&& container)
-    {
-        return convertHexOrOctalToBinary<octalChanSize>(std::forward<TContainer>(container));
-    }
-
-    template<class TContainer, class = typename std::enable_if_t< is_allow_container<TContainer>() >>
-    BinaryData toDecimal(const TContainer& container)
-    {
-        BinaryData binary;
-        while(!container.empty())
-        {
-            Bit bit = getRemainder(std::forward<TContainer>(container));
+            Bit bit = getRemainder(number);
+            if(bit == 1) ++bits;
             binary.push_front(bit); // TODO: clarify
         }
 
-        return binary;
+        return State(binary, bits, sign);
     }
 
-    template<class T, class = typename std::enable_if_t< is_allow_primary<T>() >>
-    BinaryData toDecimal(T number)
+    template<class T>
+    State fromDecimal(T number)
     {
-        BinaryData binary;
-        if(number == 0) return BinaryData(0);
-        while(number > 0)
-        {
-            binary.push_front(number&1);
-            number /= 2;
-        }
+//        BinaryData binary;
+//        size_t bits;
+//        if(number == 0) return State();
+//        while(number > 0)
+//        {
+//            if(number&1 == 1) ++bits;
+//            binary.push_front(number&1);
+//            number /= 2;
+//        }
 
-        return binary;
-    }
-
-    template<class TContainer>
-    BinaryData toHex(TContainer&& container)
-    {
-        return convertHexOrOctalToBinary<hexChanSize>(std::forward<TContainer>(container));
+//        return State(binary, bits, number < 0 ? Sign::Negative : Sign::Positive);
     }
 
 public:
 
-    template<class TContaimner>
-    BinaryData operator()(TContaimner&& container, Base base = Base::Decimal)
+    template<class T>
+    State operator()(T&& value)
     {
-        if(!validator(container, base))
-        {
-            return {};
-        }
-        switch(base)
-        {
-        case Base::Binary:
-            return toBinary(container);
-        case Base::Octal:
-            return toOctal(container);
-        case Base::Decimal:
-            return toDecimal(container);
-        case Base::Hexadecimal:
-            return toHex(container);
-        default:
-            return {};
-        }
+        if(validator(std::forward<T>(value))) fromDecimal(value);
+        return State();
     }
 
 } toBinary;

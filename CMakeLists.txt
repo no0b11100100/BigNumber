@@ -5,4 +5,4 @@ project(BigNumber LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(BigNumber main.cpp bignumber.hpp Operators.hpp Converter.hpp)
+add_executable(BigNumber main.cpp BigInt.hpp Operators.hpp Converter.hpp)

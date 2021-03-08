@@ -10,8 +10,7 @@ namespace BigInt
 namespace
 {
 
-using predicateType =  std::function<Bit(const Bit&, const Bit&)>;
-std::unordered_map<char, predicateType>predicates
+std::unordered_map<char, std::function<Bit(const Bit&, const Bit&)>> predicates
 {
     { '^', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ?      0 : 1; } },
     { '|', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 1; } },
@@ -23,12 +22,6 @@ std::unordered_map<char, predicateType>predicates
 // TODO: make operators with int
 class BigInt final
 {
-    enum class Sign : bool
-    {
-        Positive,
-        Negative
-    };
-
     template<class Predicate>
     static BigInt Transform(const BigInt& lhs, const BigInt& rhs, Predicate predicate)
     {
@@ -66,38 +59,32 @@ class BigInt final
 
     }
 
-    BinaryData m_number;
-    std::size_t m_bitSet;
-    Sign m_sign;
+    State m_state;
 
     BigInt(const BinaryData& number, size_t bits = 0, Sign sign = Sign::Positive):
-        m_number{number},
-        m_bitSet{bits},
-        m_sign{sign}
+        m_state(number, bits, sign)
     {}
 
 public:
     BigInt():
-        m_number{0},
-        m_bitSet{0},
-        m_sign{Sign::Positive}
+        m_state{State()}
     {}
 
     template<class T>
-    BigInt(T&& value, Base base)
-        : m_number{toBinary(value, base)}
+    BigInt(T&& value)
+        : m_state{toBinary(std::forward<T>(value))}
     {}
 
-    const BinaryData& Number() const { return m_number; }
-    size_t count() const { return m_bitSet; }
-    size_t bit() const { return m_number.size(); }
-    Sign sign() const { return m_sign; }
-    bool is2Pow() const { return m_bitSet == 1; }
+    const BinaryData& Number() const { return m_state.number; }
+    size_t count() const { return m_state.bitSet; }
+    size_t bit() const { return m_state.number.size(); }
+    Sign sign() const { return m_state.sign; }
+    bool is2Pow() const { return m_state.bitSet == 1; }
     bool isPrime() const
     {
         bool notPrime = bit() == 1 && (isZero() || isUnit()); // 0,1
         bool prime = !notPrime && bit() == 2 &&
-                ( equal(BinaryData({1,0}), m_number) || equal(BinaryData({1,1}), m_number)) ;
+                ( equal(BinaryData({1,0}), Number()) || equal(BinaryData({1,1}), Number())) ;
         if(notPrime) return false;
         if(prime) return true;
 
@@ -106,14 +93,14 @@ public:
 
         return false;
     }
-    bool isPositive() const { return m_sign == Sign::Positive; }
+    bool isPositive() const { return m_state.sign == Sign::Positive; }
     bool isNegative() const { return isPositive(); }
-    bool isEven() const { return *m_number.rbegin() == 0; }
+    bool isEven() const { return *Number().rbegin() == 0; }
     bool isOdd() const { return !isEven(); }
-    bool isZero() const { return m_number.size() == 1 && *m_number.begin() == 0; }
-    bool isUnit() const { return m_number.size() == 1 && *m_number.begin() == 1; }
-    void MakePositive() { m_sign = Sign::Positive; }
-    void MakeNegative() { m_sign = Sign::Negative; }
+    bool isZero() const { return bit() == 1 && *Number().begin() == 0; }
+    bool isUnit() const { return bit() == 1 && *Number().begin() == 1; }
+    void MakePositive() { m_state.sign = Sign::Positive; }
+    void MakeNegative() { m_state.sign = Sign::Negative; }
 
     friend BigInt operator + (const BigInt& lhs, const BigInt& rhs)
     {
@@ -173,7 +160,7 @@ public:
 
     BigInt& operator -= (const BigInt& other)
     {
-        *this = operator-(*this, other);
+//        *this = operator-(*this, other);
         return *this;
     }
 
@@ -265,7 +252,7 @@ public:
 
     BigInt& operator ^= (const BigInt& other)
     {
-        Transform(m_number, other, predicates['^']);
+        Transform(m_state.number, other, predicates['^']);
         return *this;
     }
 
@@ -276,7 +263,7 @@ public:
 
     BigInt& operator |= (const BigInt& other)
     {
-        Transform(m_number, other, predicates['|']);
+        Transform(m_state.number, other, predicates['|']);
         return *this;
     }
 
@@ -287,7 +274,7 @@ public:
 
     BigInt& operator &= (const BigInt& other)
     {
-        Transform(m_number, other, predicates['&']);
+        Transform(m_state.number, other, predicates['&']);
         return *this;
     }
 
@@ -301,21 +288,20 @@ public:
 
         if(isPositive())
         {
-            m_sign = Sign::Negative;
-            Increment(m_number);
+            m_state.sign = Sign::Negative;
+            Increment(m_state.number);
         }
         else
         {
-
-            m_sign = Sign::Positive;
-            Decrement(m_number);
+            m_state.sign = Sign::Positive;
+            Decrement(m_state.number);
         }
         return *this;
     }
 
     BigInt& operator -()
     {
-        m_sign = isPositive() ? Sign::Negative : Sign::Positive;
+        m_state.sign = isPositive() ? Sign::Negative : Sign::Positive;
         return *this;
     }
 
@@ -333,7 +319,7 @@ public:
 
     BigInt& operator <<= (const size_t offset)
     {
-        leftShift(m_number, offset);
+        leftShift(m_state.number, offset);
         return *this;
     }
 
@@ -346,33 +332,33 @@ public:
 
     BigInt& operator >>= (const size_t offset)
     {
-        rightShift(m_number, offset);
+        rightShift(m_state.number, offset);
         return *this;
     }
 
     BigInt& operator++()
     {
-        Increment(m_number);
+        Increment(m_state.number);
         return *this;
     }
 
     BigInt& operator--()
     {
-        Decrement(m_number);
+        Decrement(m_state.number);
         return *this;
     }
 
     BigInt operator++(int)
     {
         auto tmp = *this;
-        Increment(m_number);
+        Increment(m_state.number);
         return tmp;
     }
 
     BigInt operator--(int)
     {
         auto tmp = *this;
-        Decrement(m_number);
+        Decrement(m_state.number);
         return tmp;
     }
 
@@ -472,9 +458,9 @@ public:
             handleOdd = true;
         }
 
-        BigInt nextSum(uptoNumber, Base::Decimal);
-        BigInt nextMulti(uptoNumber, Base::Decimal);
-        BigInt factorial(BinaryData(1), 1, Sign::Positive);
+        BigInt nextSum(uptoNumber);
+        BigInt nextMulti(uptoNumber);
+        BigInt factorial(BinaryData(1), 1);
 
         while(less(nextSum.Number(), two)) // nextSum >= 2
         {
