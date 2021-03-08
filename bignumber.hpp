@@ -20,6 +20,7 @@ std::unordered_map<char, predicateType>predicates
 
 }// namespace
 
+// TODO: make operators with int
 class BigInt final
 {
     enum class Sign : bool
@@ -69,7 +70,7 @@ class BigInt final
     std::size_t m_bitSet;
     Sign m_sign;
 
-    BigInt(const BinaryData& number, size_t bits, Sign sign):
+    BigInt(const BinaryData& number, size_t bits = 0, Sign sign = Sign::Positive):
         m_number{number},
         m_bitSet{bits},
         m_sign{sign}
@@ -90,12 +91,27 @@ public:
     const BinaryData& Number() const { return m_number; }
     size_t count() const { return m_bitSet; }
     size_t bit() const { return m_number.size(); }
+    Sign sign() const { return m_sign; }
     bool is2Pow() const { return m_bitSet == 1; }
+    bool isPrime() const
+    {
+        bool notPrime = bit() == 1 && (isZero() || isUnit()); // 0,1
+        bool prime = !notPrime && bit() == 2 &&
+                ( equal(BinaryData({1,0}), m_number) || equal(BinaryData({1,1}), m_number)) ;
+        if(notPrime) return false;
+        if(prime) return true;
+
+        if ( ( (Pow(*this, 2)) % BigInt(BinaryData({1,1,0,0,0}), 2) ).isUnit())
+            return true;
+
+        return false;
+    }
     bool isPositive() const { return m_sign == Sign::Positive; }
     bool isNegative() const { return isPositive(); }
     bool isEven() const { return *m_number.rbegin() == 0; }
     bool isOdd() const { return !isEven(); }
-    bool isZero() const { return *m_number.begin() == 0; }
+    bool isZero() const { return m_number.size() == 1 && *m_number.begin() == 0; }
+    bool isUnit() const { return m_number.size() == 1 && *m_number.begin() == 1; }
     void MakePositive() { m_sign = Sign::Positive; }
     void MakeNegative() { m_sign = Sign::Negative; }
 
@@ -157,15 +173,19 @@ public:
 
     BigInt& operator -= (const BigInt& other)
     {
-//        *this = operator-(*this, other);
+        *this = operator-(*this, other);
         return *this;
     }
 
     friend BigInt operator * (const BigInt& lhs, const BigInt& rhs)
     {
+        if(lhs.isZero() || rhs.isZero()) return BigInt();
         Sign sign = ( (lhs.isPositive() && rhs.isPositive()) ||
                       (lhs.isNegative() && rhs.isNegative())) ? Sign::Positive :
                                                                 Sign::Negative;
+        if(lhs.is2Pow()) return rhs << lhs.bit();
+        if(rhs.is2Pow()) return lhs << rhs.bit();
+
         auto[result, bits] = multiplication(lhs.Number(), rhs.Number());
         return BigInt(result, bits, sign);
     }
@@ -178,7 +198,9 @@ public:
 
     friend BigInt operator / (const BigInt& lhs, const BigInt& rhs)
     {
-        if(lhs < rhs) return BigInt();
+        if(lhs < rhs) return BigInt();        
+        if(rhs.is2Pow()) return lhs >> rhs.bit();
+
         Sign sign = ( (lhs.isPositive() && rhs.isPositive()) ||
                       (lhs.isNegative() && rhs.isNegative())) ? Sign::Positive :
                                                                 Sign::Negative;
@@ -393,7 +415,7 @@ public:
                      { return data.size() == 1 && *data.begin() == 1; };
 
         std::vector<BigInt> factors;
-        for(BigInt i(BinaryData({1,0}), 1, Sign::Positive); i <= BigInt(square(number.Number()), 0, Sign::Positive); ++i)
+        for(BigInt i(BinaryData({1,0})); i <= BigInt(square(number.Number())); ++i)
         {
             while((number%i).isZero())
             {
@@ -407,7 +429,32 @@ public:
     }
 
     static BigInt fibonacci(std::size_t nElem)
-    {}
+    {
+        BigInt a(BinaryData(1), 1), b(BinaryData(1), 1), c(BinaryData(1), 1), rd(BinaryData(1), 1);
+        BigInt ta, tb, rc, tc, d;
+
+        while(nElem)
+        {
+            if(nElem&1) // isOdd
+            {
+                tc = rc;
+                rc = rc*a + rd*c;
+                rd = tc*b + rd*d;
+            }
+
+            ta = a;
+            tb = b;
+            tc = c;
+            a = a*a + b*c;
+            b = ta*b + b*d;
+            c = c*ta + d*c;
+            d = tc*tb+ d*d;
+
+            nElem /= 2;
+        }
+
+        return rc;
+    }
 
     static BigInt factorial(std::size_t nElem)
     {
