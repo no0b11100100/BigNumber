@@ -326,13 +326,14 @@ public:
     friend BigInt operator >> (const BigInt& lhs, const size_t offset)
     {
         BinaryData newResult = lhs.Number();
-        rightShift(newResult, offset);
-        return BigInt(newResult, lhs.count(), Sign::Positive); // TODO: sign and count bits
+        size_t units = lhs.count();
+        rightShift(newResult, units, offset);
+        return BigInt(newResult, units, Sign::Positive); // TODO: count bits
     }
 
     BigInt& operator >>= (const size_t offset)
     {
-        rightShift(m_state.number, offset);
+        rightShift(m_state.number, m_state.bitSet, offset);
         return *this;
     }
 

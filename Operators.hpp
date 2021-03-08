@@ -20,54 +20,90 @@ void leftShift(BinaryData& data, const size_t loops = 1) noexcept
     for(size_t i{0}; i < loops; ++i)
     {
         if(data.size() == std::numeric_limits<size_t>::max()) break;
-        if(data.empty()) data.push_back(1);
+//        if(data.empty()) data.push_back(1);
         else data.push_back(0);
     }
 }
 
 void rightShift(BinaryData& data, const size_t loops = 1) noexcept
 {
-    // TODO: count how much 1 was removed
     for(size_t i{0}; i < loops; ++i)
     {
         if(data.size() == 1)
         {
-            if(auto it = data.begin(); *it == 1)
-                *it = 0;
+            if(auto it = data.begin(); *it == 1) *it = 0;
             break;
         }
         data.pop_front();
     }
 }
 
-void Increment(BinaryData& data)
+void rightShift(BinaryData& data, size_t& bits, const size_t loops = 1) noexcept
+{
+    for(size_t i{0}; i < loops; ++i)
+    {
+        auto it = data.begin();
+        if(data.size() == 1)
+        {
+            if(*it == 1)
+            {
+                *it = 0;
+                --bits;
+            }
+            break;
+        }
+
+        if(*it == 1) --bits;
+        data.pop_front();
+    }
+}
+
+void removeInsignificantBits(BinaryData& number)
+{
+    while(true)
+    {
+        auto it = begin(number);
+        if(*it == 1 || number.size() == 1) break;
+        if(*it == 0) number.pop_front();
+    }
+}
+
+void Increment(BinaryData& data, size_t& units)
 {
     for(auto it = data.rbegin(); it != data.rend(); ++it)
     {
         if(*it == 0)
         {
             *it = 1;
+            ++units;
             break;
         }
         *it = 0;
+        --units;
     }
 
-    if(*data.begin() == 0) data.push_front(1);
+    if(*data.begin() == 0)
+    {
+        data.push_front(1);
+        ++units;
+    }
 }
 
-void Decrement(BinaryData& data)
+void Decrement(BinaryData& data, size_t& units)
 {
     for(auto it = data.rbegin(); it != data.rend(); ++it)
     {
         if(*it == 1)
         {
             *it = 0;
+            --units;
             break;
         }
         *it = 1;
+        ++units;
     }
 
-    // TODO: remove 0
+    removeInsignificantBits(data);
 }
 
 template<class Iterator>
@@ -148,6 +184,7 @@ struct Subtraction
         m_units = 0;
         auto [result, it, isLoad] = proccess(subtrahend.crbegin(), subtrahend.crend(), minuend.crbegin());
         addRest(result, it, minuend.crend(), isLoad);
+        removeInsignificantBits(result);
         return {result, m_units};
     }
 
@@ -226,16 +263,6 @@ private:
         }
 
         return {result, minuendIt, isLoan};
-    }
-
-    void removeInsignificantBits(BinaryData& number)
-    {
-        while(true)
-        {
-            auto it = begin(number);
-            if(*it == 1 || number.size() == 1) break;
-            if(*it == 0) number.pop_front();
-        }
     }
 
 } subtraction;
@@ -365,9 +392,9 @@ struct Division
             auto offsetIt = std::next(dividend.cbegin(), divisor.size());
 
             if( greater(dividend.cbegin(), offsetIt, divisor) )
-                PrepareNumbers(tmp, shiftedData, diff);
+                PrepareNumbers(tmp, shiftedData, diff, units);
             else
-                PrepareNumbers(tmp, shiftedData, --diff);
+                PrepareNumbers(tmp, shiftedData, --diff, units);
 
             if(mode == Mode::Div)
                 std::tie(result, units) = addition(result, shiftedData);
@@ -381,24 +408,19 @@ struct Division
 
 private:
 
-    static void prepareShiftedData(BinaryData& shiftedData, size_t count)
+    static void prepareShiftedData(BinaryData& shiftedData, size_t count, size_t& units)
     {
         size_t size = shiftedData.size();
         if(size < count)
-            for(size_t i {size}; i < count; ++i)
-                leftShift(shiftedData);
+            leftShift(shiftedData, count-size);
         else
-            for(size_t i {size}; i < count; ++i)
-                rightShift(shiftedData);
+            rightShift(shiftedData, units, size-count);
     }
 
-    static void PrepareNumbers(BinaryData& result, BinaryData& shiftedData, size_t count)
+    static void PrepareNumbers(BinaryData& result, BinaryData& shiftedData, size_t count, size_t& units)
     {
-        std::thread prepareShiftedDataThread(prepareShiftedData, std::ref(shiftedData), count);
-
-        for(size_t i {0}; i < count; ++i)
-            leftShift(result);
-
+        std::thread prepareShiftedDataThread(prepareShiftedData, std::ref(shiftedData), count, std::ref(units));
+        leftShift(result, count);
         prepareShiftedDataThread.join();
     }
 
