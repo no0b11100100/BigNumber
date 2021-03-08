@@ -289,12 +289,12 @@ public:
         if(isPositive())
         {
             m_state.sign = Sign::Negative;
-            Increment(m_state.number);
+            Increment(m_state.number, m_state.bitSet);
         }
         else
         {
             m_state.sign = Sign::Positive;
-            Decrement(m_state.number);
+            Decrement(m_state.number, m_state.bitSet);
         }
         return *this;
     }
@@ -339,27 +339,39 @@ public:
 
     BigInt& operator++()
     {
-        Increment(m_state.number);
+        Increment(m_state.number, m_state.bitSet);
         return *this;
     }
 
     BigInt& operator--()
     {
-        Decrement(m_state.number);
+        if(isZero())
+            *this = BigInt(BinaryData{1}, 1, Sign::Negative);
+        else if(isPositive())
+            Decrement(m_state.number, m_state.bitSet);
+        else if(isNegative())
+            Increment(m_state.number, m_state.bitSet);
+
         return *this;
     }
 
     BigInt operator++(int)
     {
         auto tmp = *this;
-        Increment(m_state.number);
+        Increment(m_state.number, m_state.bitSet);
         return tmp;
     }
 
     BigInt operator--(int)
     {
         auto tmp = *this;
-        Decrement(m_state.number);
+        if(isZero())
+            *this = BigInt(BinaryData{1}, 1, Sign::Negative);
+        else if(isPositive())
+            Decrement(m_state.number, m_state.bitSet);
+        else if(isNegative())
+            Increment(m_state.number, m_state.bitSet);
+
         return tmp;
     }
 
