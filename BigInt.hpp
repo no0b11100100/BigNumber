@@ -70,9 +70,13 @@ public:
         m_state{State()}
     {}
 
-    template<class T>
-    BigInt(T&& value)
-        : m_state{ toBinary( std::forward<T>( value ) ) }
+    BigInt(const std::string value) :
+        m_state{ ToBinary::convert( value ) }
+    {}
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>()>>
+    BigInt(T value)
+        : m_state{ ToBinary::convert( value ) }
     {}
 
     inline const BinaryData& Number() const { return m_state.number; }
@@ -540,10 +544,9 @@ public:
         return *this;
     }
 
-    BigInt& operator -()
+    friend BigInt operator -(const BigInt& number)
     {
-        m_state.sign = isPositive() ? Sign::Negative : Sign::Positive;
-        return *this;
+        return BigInt(number.Number(), number.count(), number.isPositive() ? Sign::Negative : Sign::Negative);
     }
 
     BigInt operator !()

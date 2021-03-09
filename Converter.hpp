@@ -92,7 +92,8 @@ constexpr bool is_integer()
             std::is_same_v<Type, int8_t> ||
             std::is_same_v<Type, int16_t> ||
             std::is_same_v<Type, int32_t> ||
-            std::is_same_v<Type, int64_t>;
+            std::is_same_v<Type, int64_t> ||
+            std::is_same_v<Type, size_t>;
 }
 
 struct Validator
@@ -110,14 +111,14 @@ private:
 
     bool isValid(const std::string& number)
     {
-        auto validate = [min=min, max=max](const char& symbol) -> bool { return symbol > min && symbol <= max; };
+        auto validate = [min=min, max=max](const char& symbol) -> bool { return symbol >= min && symbol <= max; };
         return std::find_if_not(std::execution::par_unseq, cbegin(number), cend(number),
                                 [&](const char& value){ return validate(value); })
                 == number.cend();
     }
 
-    template< class T, class = typename std::enable_if_t< is_integer<T>() > >
-    bool isValid(T) { return true; }
+    template< class T >
+    bool isValid(T&&) { return true; }
 
 } validator;
 
@@ -245,30 +246,37 @@ class ToBinary
      * @param number
      * @return remainder
      */
-    Bit getRemainder(std::string& number)
+    static Bit getRemainder(std::string& number, size_t& offset)
     {
         unsigned int remainder = 0;
         unsigned int dividend;
         unsigned int quot;
-        std::transform(number.begin(), number.end(), number.begin(), [&](const char& value)
+
+        offset = number.find_first_not_of('0', offset);
+        auto it = std::next(number.begin(), offset);
+        std::transform(it, number.end(), it, [&](const char& value)
         {
-            dividend = (remainder * 10) + value;
+            dividend = (remainder * 10) + (value-'0');
             remainder = dividend & 1;
             quot = dividend / 2;
-            return quot;
+            return (quot+'0');
         });
 
-        return static_cast<Bit>(remainder);
-    };
+        if(offset+1 == number.size() && *number.rbegin() == '0')
+            ++offset;
 
-    State fromDecimal(std::string number)
+        return static_cast<Bit>(remainder);
+    }
+
+    static State fromDecimal(std::string number)
     {
         BinaryData binary;
         size_t bits{0};
+        size_t offset{0};
         Sign sign = static_cast<int>(*number.begin()) < 0 ? Sign::Negative : Sign::Positive;
-        while(!number.empty())
+        while(offset != number.size())
         {
-            Bit bit = getRemainder(number);
+            Bit bit = getRemainder(number, offset);
             if(bit == 1) ++bits;
             binary.push_front(bit); // TODO: clarify
         }
@@ -277,7 +285,7 @@ class ToBinary
     }
 
     template<class T>
-    State fromDecimal(T number)
+    static State fromDecimal(T number)
     {
         BinaryData binary;
         size_t bits{0};
@@ -295,10 +303,9 @@ class ToBinary
 public:
 
     template<class T>
-    State operator()(T&& value)
+    static State convert(T&& value)
     {
-        if(validator(std::forward<T>(value))) fromDecimal(value);
-        return State();
+        return validator(value) ? fromDecimal(value) : State();
     }
 
-} toBinary;
+};
