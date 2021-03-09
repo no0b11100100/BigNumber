@@ -18,7 +18,7 @@ enum class Sign : bool
     Negative
 };
 
-std::unordered_map<std::string, char> binaryCast
+std::unordered_map<std::string, char> fromBinaryTo
 {
     {"000", '0'},
     {"001", '1'},
@@ -130,7 +130,7 @@ class FromBinary
     constexpr static const unsigned short m_HexChanSize = 4;
 
     template<size_t N, class ReversIterator>
-    char castHexOrOctalToBinary(ReversIterator it, ReversIterator end)
+    static char castHexOrOctalToBinary(ReversIterator it, ReversIterator end)
     {
         static_assert (N == 3 || N == 4, "chan size must be 3 or 4");
         std::string chan(N, '0');
@@ -138,11 +138,11 @@ class FromBinary
         for(auto chanIt = rbegin(chan); chanIt != chan.rend() || it != end; ++it, ++chanIt)
             *chanIt = *it;
 
-        return binaryCast[chan];
+        return fromBinaryTo[chan];
     }
 
     template<size_t chanSize>
-    std::string convertHexOrOctalToBinary(const BinaryData& binary)
+    static std::string convertHexOrOctalToBinary(const BinaryData& binary)
     {
         std::string result;
         result.reserve(binary.size() / chanSize);
@@ -155,7 +155,7 @@ class FromBinary
         return result;
     }
 
-    void aditionDecimal(std::deque<char>& result, const std::string& addendum)
+    static void aditionDecimal(std::deque<char>& result, const std::string& addendum)
     {
         if(result.empty()) result.push_back(0);
         assert(result.size() <= addendum.size());
@@ -177,7 +177,7 @@ class FromBinary
             result.push_front(toChar(transfer));
     }
 
-    void multiplicationBy2(std::string& result)
+    static void multiplicationBy2(std::string& result)
     {
         size_t transfer = 0;
         auto charToInt = [](const char& symbol) -> unsigned { return static_cast<unsigned>(symbol); };
@@ -197,7 +197,7 @@ class FromBinary
     }
 
 public:
-    std::string ToBinary(const BinaryData& binary)
+    static std::string ToBinary(const BinaryData& binary)
     {
         std::string result;
         result.reserve(binary.size());
@@ -205,12 +205,12 @@ public:
         return result;
     }
 
-    std::string ToOctal(const BinaryData& binary)
+    static std::string ToOctal(const BinaryData& binary)
     {
         return convertHexOrOctalToBinary<m_octalChanSize>(binary);
     }
 
-    std::string ToDecimal(const BinaryData& binary)
+    static std::string ToDecimal(const BinaryData& binary)
     {
         std::deque<char> tempResult(binary.size() / 4);
         std::string degree = "1";
@@ -228,12 +228,12 @@ public:
         return result;
     }
 
-    std::string ToHex(const BinaryData& binary)
+    static std::string ToHex(const BinaryData& binary)
     {
         return convertHexOrOctalToBinary<m_HexChanSize>(binary);
     }
 
-} fromBinary;
+};
 
 /**
  *   ToBinary convert any collection to binary format
@@ -264,7 +264,7 @@ class ToBinary
     State fromDecimal(std::string number)
     {
         BinaryData binary;
-        size_t bits;
+        size_t bits{0};
         Sign sign = static_cast<int>(*number.begin()) < 0 ? Sign::Negative : Sign::Positive;
         while(!number.empty())
         {
@@ -279,17 +279,17 @@ class ToBinary
     template<class T>
     State fromDecimal(T number)
     {
-//        BinaryData binary;
-//        size_t bits;
-//        if(number == 0) return State();
-//        while(number > 0)
-//        {
-//            if(number&1 == 1) ++bits;
-//            binary.push_front(number&1);
-//            number /= 2;
-//        }
+        BinaryData binary;
+        size_t bits{0};
+        if(number == 0) return State();
+        while(number > 0)
+        {
+            if(number&1) ++bits;
+            binary.push_front(number&1);
+            number /= 2;
+        }
 
-//        return State(binary, bits, number < 0 ? Sign::Negative : Sign::Positive);
+        return State(binary, bits, number < 0 ? Sign::Negative : Sign::Positive);
     }
 
 public:

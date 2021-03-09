@@ -3,23 +3,12 @@
 #include <iterator>
 #include "Converter.hpp"
 #include "Operators.hpp"
+#include <ostream>
+#include <iostream>
 
 namespace BigInt
 {
 
-namespace
-{
-
-std::unordered_map<char, std::function<Bit(const Bit&, const Bit&)>> predicates
-{
-    { '^', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ?      0 : 1; } },
-    { '|', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 1; } },
-    { '&', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 0; } },
-};
-
-}// namespace
-
-// TODO: make operators with int
 class BigInt final
 {
     template<class Predicate>
@@ -59,6 +48,8 @@ class BigInt final
 
     }
 
+    static std::unordered_map<char, std::function<Bit(const Bit&, const Bit&)>> predicates;
+
     State m_state;
 
     BigInt(const BinaryData& number, size_t bits = 0, Sign sign = Sign::Positive):
@@ -69,6 +60,11 @@ class BigInt final
         m_state{state}
     {}
 
+    BigInt operator =(const std::string& data)
+    {
+        return BigInt(data);
+    }
+
 public:
     BigInt():
         m_state{State()}
@@ -76,14 +72,14 @@ public:
 
     template<class T>
     BigInt(T&& value)
-        : m_state{toBinary(std::forward<T>(value))}
+        : m_state{ toBinary( std::forward<T>( value ) ) }
     {}
 
-    const BinaryData& Number() const { return m_state.number; }
-    size_t count() const { return m_state.bitSet; }
-    size_t bit() const { return m_state.number.size(); }
-    Sign sign() const { return m_state.sign; }
-    bool is2Pow() const { return m_state.bitSet == 1; }
+    inline const BinaryData& Number() const { return m_state.number; }
+    inline size_t count() const { return m_state.bitSet; }
+    inline size_t bit() const { return m_state.number.size(); }
+    inline Sign sign() const { return m_state.sign; }
+    inline bool is2Pow() const { return m_state.bitSet == 1; }
     bool isPrime() const
     {
         bool notPrime = bit() == 1 && (isZero() || isUnit()); // 0,1
@@ -97,14 +93,18 @@ public:
 
         return false;
     }
-    bool isPositive() const { return m_state.sign == Sign::Positive; }
-    bool isNegative() const { return isPositive(); }
-    bool isEven() const { return *Number().rbegin() == 0; }
-    bool isOdd() const { return !isEven(); }
-    bool isZero() const { return bit() == 1 && *Number().begin() == 0; }
-    bool isUnit() const { return bit() == 1 && *Number().begin() == 1; }
-    void MakePositive() { m_state.sign = Sign::Positive; }
-    void MakeNegative() { m_state.sign = Sign::Negative; }
+    inline bool isPositive() const { return m_state.sign == Sign::Positive; }
+    inline bool isNegative() const { return isPositive(); }
+    inline bool isEven() const { return *Number().rbegin() == 0; }
+    inline bool isOdd() const { return !isEven(); }
+    inline bool isZero() const { return bit() == 1 && *Number().begin() == 0; }
+    inline bool isUnit() const { return bit() == 1 && *Number().begin() == 1; }
+    inline void MakePositive() { m_state.sign = Sign::Positive; }
+    inline void MakeNegative() { m_state.sign = Sign::Negative; }
+    inline std::string toBinary() const { return FromBinary::ToBinary(m_state.number); }
+    inline std::string toOctal() const { return FromBinary::ToOctal(m_state.number); }
+    inline std::string toDecimal() const { return FromBinary::ToDecimal(m_state.number); }
+    inline std::string toHex() const { return FromBinary::ToHex(m_state.number); }
 
     friend BigInt operator + (const BigInt& lhs, const BigInt& rhs)
     {
@@ -168,17 +168,26 @@ public:
 
     friend BigInt operator - (const BigInt& lhs, const BigInt& rhs)
     {
-        if(lhs.isPositive() && rhs.isPositive())
+        if(lhs.isPositive() && rhs.isNegative())
         {
             auto [result, bits] = addition(lhs.Number(), rhs.Number());
             return BigInt(result, bits, Sign::Positive);
         }
+        else if(lhs.isNegative() && rhs.isPositive())
+        {
+            auto [result, bits] = addition(lhs.Number(), rhs.Number());
+            return BigInt(result, bits, Sign::Negative);
+        }
 
-        auto [result, bits] =  lhs > rhs ?
+        bool isBigger = greater(lhs.Number(), rhs.Number());
+        Sign sign = (lhs.isNegative() && rhs.isNegative()) ?
+                    (isBigger ? Sign::Negative : Sign::Positive) :
+                    (isBigger ? Sign::Positive : Sign::Negative);
+        auto [result, bits] = isBigger ?
                 subtraction(lhs.Number(), rhs.Number()) :
                 subtraction(rhs.Number(), lhs.Number());
 
-        return BigInt(result, bits, Sign::Negative);
+        return BigInt(result, bits, sign);
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
@@ -209,9 +218,9 @@ public:
     friend BigInt operator * (const BigInt& lhs, const BigInt& rhs)
     {
         if(lhs.isZero() || rhs.isZero()) return BigInt();
-        Sign sign = ( (lhs.isPositive() && rhs.isPositive()) ||
-                      (lhs.isNegative() && rhs.isNegative())) ? Sign::Positive :
-                                                                Sign::Negative;
+        Sign sign = lhs.sign() == rhs.sign() ? Sign::Positive : Sign::Negative;
+        if(lhs.isUnit()) return rhs;
+        if(rhs.isUnit()) return lhs;
         if(lhs.is2Pow()) return rhs << lhs.bit();
         if(rhs.is2Pow()) return lhs << rhs.bit();
 
@@ -246,12 +255,12 @@ public:
 
     friend BigInt operator / (const BigInt& lhs, const BigInt& rhs)
     {
-        if(lhs < rhs) return BigInt();        
+        if(rhs.isZero()) throw "Division by zero";
+        if(lhs < rhs) return BigInt();
+        if(rhs.isUnit()) return lhs;
         if(rhs.is2Pow()) return lhs >> rhs.bit();
 
-        Sign sign = ( (lhs.isPositive() && rhs.isPositive()) ||
-                      (lhs.isNegative() && rhs.isNegative())) ? Sign::Positive :
-                                                                Sign::Negative;
+        Sign sign = lhs.sign() == rhs.sign() ? Sign::Positive : Sign::Negative;
         auto [result, bits] = division(lhs.Number(), rhs.Number(), Division::Mode::Div);
         return BigInt(result, bits, sign);
     }
@@ -569,6 +578,20 @@ public:
         return *this;
     }
 
+    friend std::ostream& operator << (std::ostream& os, const BigInt& number)
+    {
+        os << number.toDecimal();
+        return os;
+    }
+
+    friend std::istream& operator >> (std::istream& is, BigInt& number)
+    {
+        std::string str;
+        is >> str;
+        number = str;
+        return is;
+    }
+
     BigInt& operator++()
     {
         if(isNegative())
@@ -646,9 +669,6 @@ public:
 
     static std::vector<BigInt> factorize(BigInt number)
     {
-        auto isOne = [&](const BinaryData& data)
-                     { return data.size() == 1 && *data.begin() == 1; };
-
         std::vector<BigInt> factors;
         for(BigInt i(BinaryData({1,0})); i <= BigInt(square(number.Number())); ++i)
         {
@@ -659,7 +679,7 @@ public:
             }
         }
 
-        if(isOne(number.Number())) factors.push_back(number);
+        if(number.isUnit()) factors.push_back(number);
         return factors;
     }
 
@@ -747,6 +767,13 @@ public:
         return (a*b) / gcd(a,b);
     }
 
+};
+
+std::unordered_map<char, std::function<Bit(const Bit&, const Bit&)>> predicates
+{
+    { '^', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ?      0 : 1; } },
+    { '|', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 1; } },
+    { '&', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 0; } },
 };
 
 } // namespace BigInt
