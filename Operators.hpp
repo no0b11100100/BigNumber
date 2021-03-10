@@ -502,3 +502,103 @@ private:
     bool isZero(const BinaryData& number) const { return number.size() == 1 && *number.cbegin() == 0; }
 
 } square;
+
+struct MakeBinaryNegative
+{
+    size_t operator()(BinaryData& data)
+    {
+        size_t bits = inverseBits(data)+1;
+        data.push_front(1);
+        Increment(data, bits);
+        return bits;
+    }
+private:
+
+    size_t inverseBits(BinaryData& data)
+    {
+        size_t count;
+        std::transform(data.begin(), data.end(), data.begin(), [&count](const Bit& bit) -> Bit
+        {
+            if(bit == 0) ++count;
+            return !bit;
+        });
+
+        return count;
+    };
+} binaryNegative;
+
+struct Predicate
+{
+    enum class Case
+    {
+        PositivePositive,
+        NegativeNegative,
+        PositiveNegative,
+        NegativePositive
+    };
+private:
+    bool isNegativeIncrement1{false};
+    bool isNegativeIncrement2{false};
+
+    using Callback = std::function<Bit(const Bit&, const Bit&)>;
+
+    Bit differentSigns(const Bit& positiveBit, const Bit& negativeBit, Callback callback, bool& isInceremnt)
+    {
+        Bit newNegativeBit = !negativeBit;
+        if(!isInceremnt && newNegativeBit == 0)
+        {
+            newNegativeBit = 1;
+            isInceremnt = true;
+        }
+
+        return callback(positiveBit, newNegativeBit);
+    }
+
+    Bit NegativeNegative(const Bit& lhsBit, const Bit& rhsBit, Callback callback, bool& isInceremntLhs, bool& isInceremntRhs)
+    {
+        Bit newLhsBit {!lhsBit};
+        Bit newRhsBit {!rhsBit};
+        if(!isInceremntLhs && newLhsBit == 0)
+        {
+            newLhsBit = 1;
+            isInceremntLhs = true;
+        }
+
+        if(!isInceremntRhs && newRhsBit == 0)
+        {
+            newRhsBit = 1;
+            isInceremntRhs = true;
+        }
+
+        return callback(newLhsBit, newRhsBit);
+    }
+
+    Case m_case;
+    Callback m_callback;
+public:
+    Bit operator()(const Bit& lhs, const Bit& rhs)
+    {
+        switch(m_case)
+        {
+        case Case::NegativePositive:
+            return differentSigns(rhs, lhs, m_callback, isNegativeIncrement1);
+        case Case::PositiveNegative:
+            return differentSigns(lhs, rhs, m_callback, isNegativeIncrement1);
+        case Case::NegativeNegative:
+            return NegativeNegative(lhs, rhs, m_callback, isNegativeIncrement1, isNegativeIncrement2);
+        default:
+            return m_callback(lhs, rhs);
+        }
+    }
+
+    Predicate(Case _case, Callback callback)
+        : m_case{_case},
+          m_callback{callback}
+    {}
+
+    Predicate() = delete;
+    Predicate(const Predicate&) = delete;
+    Predicate(Predicate&&) = delete;
+    Predicate operator=(const Predicate&) = delete;
+    Predicate& operator=(Predicate&&) = delete;
+};

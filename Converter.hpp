@@ -111,10 +111,9 @@ private:
 
     bool isValid(const std::string& number)
     {
+        auto it = *number.cbegin() == '-' ? std::next(number.cbegin()) : number.cbegin();
         auto validate = [min=min, max=max](const char& symbol) -> bool { return symbol >= min && symbol <= max; };
-        return std::find_if_not(std::execution::par_unseq, cbegin(number), cend(number),
-                                [&](const char& value){ return validate(value); })
-                == number.cend();
+        return std::all_of(it, number.cend(), validate);
     }
 
     template< class T >
@@ -273,15 +272,16 @@ class ToBinary
         BinaryData binary;
         size_t bits{0};
         size_t offset{0};
-        Sign sign = static_cast<int>(*number.begin()) < 0 ? Sign::Negative : Sign::Positive;
         while(offset != number.size())
         {
             Bit bit = getRemainder(number, offset);
             if(bit == 1) ++bits;
-            binary.push_front(bit); // TODO: clarify
+            binary.push_front(bit);
         }
 
-        return State(binary, bits, sign);
+        return State(binary, bits, *number.begin() == '-' ?
+                                   Sign::Negative :
+                                   Sign::Positive);
     }
 
     template<class T>

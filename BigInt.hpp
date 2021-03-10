@@ -11,40 +11,99 @@ namespace BigInt
 
 class BigInt final
 {
-    template<class Predicate>
-    static BigInt Transform(const BigInt& lhs, const BigInt& rhs, Predicate predicate)
+    template<class Iterator1, class Result, class Callback>
+    static size_t process(Iterator1 startFirst, Iterator1 endFirst,
+                        Iterator1 startSecond, Iterator1 endSecond,
+                        Result& result, Callback&& callback)
     {
-        BinaryData result;
-        static auto forEach = [&](const Bit& bit) { result.push_front(bit); };
-        if(lhs.bit() < rhs.bit())
+        size_t bits{0};
+        std::transform(startFirst, endFirst, startSecond, result.begin(), [&](const Bit& lhs, const Bit& rhs)
         {
-            std::transform(lhs.Number().crbegin(), lhs.Number().crend(), rhs.Number().crbegin(), std::front_inserter(result), predicate);
-            auto it = std::next( rhs.Number().crbegin(), lhs.bit() );
-            std::for_each(it, rhs.Number().crend(), forEach);
-        }
-        else if(lhs.bit() > rhs.bit())
+            Bit bit = callback(lhs, rhs);
+            if(bit == 1) ++bits;
+            return bit;
+        });
+        size_t size = std::distance(startSecond, endSecond);
+        auto it = std::next(startFirst, size);
+        std::for_each(it, endSecond, [&result, &bits](const Bit& bit)
         {
-            std::transform(rhs.Number().crbegin(), rhs.Number().crend(), lhs.Number().crbegin(), std::front_inserter(result), predicate);
-            auto it = std::next( lhs.Number().crbegin(), rhs.bit() );
-            std::for_each(it, lhs.Number().crend(), forEach);
+            if(bit == 1) ++bits;
+            result.push_front(bit);
+        });
+
+        return bits;
+    }
+
+    template<class Callback>
+    static BigInt Transform(const BigInt& lhs, const BigInt& rhs, Callback callback)
+    {
+        // TODO: add 1 if negative
+        if(lhs.sign() == rhs.sign())
+        {
+            size_t size = lhs.isNegative() ? std::min( lhs.bit()+1, rhs.bit()+1)
+                                           : std::min( lhs.bit(), rhs.bit());
+
+            BinaryData result(size);
+            size_t bits{0};
+            Predicate predicate(lhs.isNegative() ? Predicate::Case::NegativeNegative :
+                                                   Predicate::Case::PositivePositive, callback);
+
+            if(lhs.bit() <= rhs.bit())
+            {
+                bits = process(lhs.Number().crbegin(), lhs.Number().crend(),
+                        rhs.Number().crbegin(), rhs.Number().crend(),
+                        result, predicate);
+            }
+            else if(lhs.bit() > rhs.bit())
+            {
+                bits = process(rhs.Number().crbegin(), rhs.Number().crend(),
+                        lhs.Number().crbegin(), lhs.Number().crend(),
+                        result, predicate);
+            }
+
+            return BigInt(result, bits, Sign::Positive);
         }
         else
-            std::transform(lhs.Number().crbegin(), lhs.Number().crend(), rhs.Number().crbegin(), std::front_inserter(result), predicate);
+        {
+            size_t size = lhs.isNegative() ? std::min( lhs.bit()+1, rhs.bit())
+                                           : std::min( lhs.bit(), rhs.bit()+1);
+            BinaryData result(size);
+            size_t bits{0};
+            Predicate predicate(lhs.isNegative() ? Predicate::Case::NegativePositive :
+                                                   Predicate::Case::PositiveNegative, callback);
 
-        return BigInt(result, 0, Sign::Positive); // TODO
+            if(lhs.bit() == size) // <=
+            {
+                bits = process(lhs.Number().crbegin(), lhs.Number().crend(),
+                        rhs.Number().crbegin(), rhs.Number().crend(),
+                        result, predicate);
+            }
+            else if(rhs.bit() == size)
+            {
+                bits = process(rhs.Number().crbegin(), rhs.Number().crend(),
+                        lhs.Number().crbegin(), lhs.Number().crend(),
+                        result, predicate);
+            }
+
+            return BigInt(result, bits, Sign::Positive);
+        }
+
+        return BigInt();
     }
 
     template<class Predicate>
-    static void Transform(BinaryData& number, const BigInt& other, Predicate predicate)
+    void Transform(const BigInt& other, Predicate predicate)
     {
-        if(number.size() <= other.bit())
-        {
-            std::transform(number.crbegin(), number.crend(), other.Number().crbegin(), number.rbegin(), predicate);
-            auto it = std::next( other.Number().crbegin(), number.size() );
-            std::for_each(it, other.Number().crend(), [&](const Bit& bit) { number.push_front(bit); });
-        }
-        else
-            std::transform(other.Number().crbegin(), other.Number().crend(), number.crbegin(), number.rbegin(), predicate);
+//        if(isNegative())
+
+//        if(number.size() <= other.bit())
+//        {
+//            std::transform(number.crbegin(), number.crend(), other.Number().crbegin(), number.rbegin(), predicate);
+//            auto it = std::next( other.Number().crbegin(), number.size() );
+//            std::for_each(it, other.Number().crend(), [&](const Bit& bit) { number.push_front(bit); });
+//        }
+//        else
+//            std::transform(other.Number().crbegin(), other.Number().crend(), number.crbegin(), number.rbegin(), predicate);
 
     }
 
@@ -98,7 +157,7 @@ public:
         return false;
     }
     inline bool isPositive() const { return m_state.sign == Sign::Positive; }
-    inline bool isNegative() const { return isPositive(); }
+    inline bool isNegative() const { return !isPositive(); }
     inline bool isEven() const { return *Number().rbegin() == 0; }
     inline bool isOdd() const { return !isEven(); }
     inline bool isZero() const { return bit() == 1 && *Number().begin() == 0; }
@@ -455,7 +514,7 @@ public:
 
     BigInt& operator ^= (const BigInt& other)
     {
-        Transform(m_state.number, other, predicates['^']);
+        Transform(other, predicates['^']);
         return *this;
     }
 
@@ -484,7 +543,7 @@ public:
 
     BigInt& operator |= (const BigInt& other)
     {
-        Transform(m_state.number, other, predicates['|']);
+        Transform(other, predicates['|']);
         return *this;
     }
 
@@ -513,7 +572,7 @@ public:
 
     BigInt& operator &= (const BigInt& other)
     {
-        Transform(m_state.number, other, predicates['&']);
+        Transform(other, predicates['&']);
         return *this;
     }
 
@@ -523,25 +582,27 @@ public:
         return operator&=(BigInt(toBinary(other)));
     }
 
-    BigInt& operator ~()
+    friend BigInt operator ~(const BigInt& number)
     {
-        if(isZero())
-        {
-            *this = BigInt(BinaryData{1}, 1, Sign::Negative);
-            return *this;
-        }
+        if(number.isZero())
+            return BigInt(BinaryData{1}, 1, Sign::Negative);
 
-        if(isPositive())
+        if(number.isPositive())
         {
-            m_state.sign = Sign::Negative;
-            Increment(m_state.number, m_state.bitSet);
+            BinaryData data = number.Number();
+            size_t bits = number.count();
+            Increment(data, bits);
+            return BigInt(data, bits, Sign::Negative);
         }
         else
         {
-            m_state.sign = Sign::Positive;
-            Decrement(m_state.number, m_state.bitSet);
+            BinaryData data = number.Number();
+            size_t bits = number.count();
+            Decrement(data, bits);
+            return BigInt(data, bits, Sign::Positive);
         }
-        return *this;
+
+        return BigInt();
     }
 
     friend BigInt operator -(const BigInt& number)
@@ -772,7 +833,7 @@ public:
 
 };
 
-std::unordered_map<char, std::function<Bit(const Bit&, const Bit&)>> predicates
+std::unordered_map<char, std::function<Bit(const Bit&, const Bit&)>> callbacks
 {
     { '^', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ?      0 : 1; } },
     { '|', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 1; } },
