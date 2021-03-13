@@ -458,16 +458,15 @@ private:
     BinaryReturnType proccess(Iterator startIt, Iterator endIt, const BinaryData& other)
     {
         BinaryData result;
-        BinaryData tmp;
+        BinaryData tmp = other;
         size_t offset = 0;
-        std::copy(std::execution::par_unseq, startIt, endIt, std::back_inserter(tmp));
         for(; startIt != endIt; ++startIt)
         {
             if(*startIt == 0) leftShift(tmp);
             if(*startIt == 1)
             {
                 ++offset;
-                if( *std::next(startIt) == 0 || std::next(startIt) == endIt )
+                if(startIt == std::prev(endIt) || *std::next(startIt) == 0)
                     handleNextZero(result, tmp, other, offset);
 
                 leftShift(tmp);
@@ -499,7 +498,8 @@ struct Square
             }
             else rightShift(result);
 
-            rightShift(tmp, 2);
+            rightShift(tmp);
+            rightShift(tmp);
         }
 
         return result;
