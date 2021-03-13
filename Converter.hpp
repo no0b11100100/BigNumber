@@ -11,6 +11,7 @@
 #include <execution>
 #include <cassert>
 #include <functional>
+#include <iostream>
 
 enum class Sign : bool
 {
@@ -129,14 +130,18 @@ class FromBinary
     constexpr static const unsigned short m_octalChanSize = 3;
     constexpr static const unsigned short m_HexChanSize = 4;
 
+    template<class T>
+    static char toChar(const T& number) { return number+'0'; };
+    static unsigned charToInt(const char& symbol) { return symbol-'0'; };
+
     template<size_t N, class ReversIterator>
-    static char castHexOrOctalToBinary(ReversIterator it, ReversIterator end)
+    static char castHexOrOctalToBinary(ReversIterator& it, ReversIterator end)
     {
         static_assert (N == 3 || N == 4, "chan size must be 3 or 4");
         std::string chan(N, '0');
 
-        for(auto chanIt = rbegin(chan); chanIt != chan.rend() || it != end; ++it, ++chanIt)
-            *chanIt = *it;
+        for(auto chanIt = chan.rbegin(); chanIt != chan.rend() && it != end; ++chanIt, ++it)
+            *chanIt = toChar(*it);
 
         return fromBinaryTo[chan];
     }
@@ -144,33 +149,34 @@ class FromBinary
     template<size_t chanSize>
     static std::string convertHexOrOctalToBinary(const BinaryData& binary)
     {
-        std::string result;
-        result.reserve(binary.size() / chanSize);
-        for(auto it = binary.crbegin(); it != binary.crend(); it += chanSize)
+        std::deque<char> tempResult(binary.size() / chanSize);
+        for(auto it = binary.crbegin(); it != binary.crend();)
         {
             char symbol = castHexOrOctalToBinary<chanSize>(it, binary.crend());
-            result.push_back(symbol);
+            tempResult.push_front(symbol);
         }
 
+        std::string result;
+        std::move(tempResult.cbegin(), tempResult.cend(), std::back_inserter(result));
         return result;
     }
 
     static void aditionDecimal(std::deque<char>& result, const std::string& addendum)
     {
-        if(result.empty()) result.push_back(0);
+        if(result.empty()) result.push_back('0');
         assert(result.size() <= addendum.size());
-        size_t transfer = 0;
-        auto toInt = [](const char& symbol) -> unsigned { return static_cast<unsigned>(symbol); };
-        auto toChar = [](const unsigned& digit) -> char { return static_cast<char>(digit); };
-        std::transform(result.rbegin(), result.rend(), addendum.crbegin(), result.rbegin(),
-                       [&](const char& resultValue, const char& addendumValue) -> char
+        unsigned transfer = 0;
+        auto predicate = [&](const char& resultValue, const char& addendumValue = '0') -> char
         {
             assert(transfer <= 9);
-            unsigned newValue = toInt(resultValue) + toInt(addendumValue) + transfer;
+            unsigned newValue = charToInt(resultValue) + charToInt(addendumValue) + transfer;
             assert(newValue < 100);
-            transfer /= 10;
+            transfer = newValue / 10;
             return toChar(newValue % 10);
-        });
+        };
+
+        std::transform(result.rbegin(), result.rend(), addendum.crbegin(), result.rbegin(), predicate);
+        std::transform(std::next(addendum.crbegin(), result.size()), addendum.crend(), std::front_inserter(result), predicate);
 
         assert(transfer <= 9);
         if(transfer != 0)
@@ -179,21 +185,19 @@ class FromBinary
 
     static void multiplicationBy2(std::string& result)
     {
-        size_t transfer = 0;
-        auto charToInt = [](const char& symbol) -> unsigned { return static_cast<unsigned>(symbol); };
-        auto intToChar = [](const unsigned& number) -> char { return static_cast<char>(number); };
-        std::transform(result.rbegin(), result.rend(), result.begin(),
-                       [&transfer, &charToInt, &intToChar](const char& digit) -> char
+        unsigned transfer = 0;
+        std::transform(result.rbegin(), result.rend(), result.rbegin(),
+                       [&](const char& digit) -> char
         {
             assert(transfer <= 9);
-            size_t newValue = charToInt(digit)*2 + transfer;
-            transfer /= 10;
-            return intToChar(newValue % 10);
+            unsigned newValue = charToInt(digit)*2 + transfer;
+            transfer = newValue / 10;
+            return toChar(newValue % 10);
         });
 
         assert(transfer <= 9);
         if(transfer != 0)
-            result.insert(intToChar(transfer), 0);
+            result.insert(result.cbegin(), toChar(transfer));
     }
 
 public:
@@ -212,7 +216,7 @@ public:
 
     static std::string ToDecimal(const BinaryData& binary)
     {
-        std::deque<char> tempResult(binary.size() / 4);
+        std::deque<char> tempResult;
         std::string degree = "1";
 
         for(auto it = binary.crbegin(); it != binary.crend(); ++it)
@@ -221,10 +225,8 @@ public:
             multiplicationBy2(degree);
         }
 
-        std::string result;
-        result.reserve(tempResult.size());
+        std::string result(tempResult.size(), '0');
         std::move(tempResult.begin(), tempResult.end(), result.begin());
-
         return result;
     }
 

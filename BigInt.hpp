@@ -11,103 +11,44 @@ namespace BigInt
 
 class BigInt final
 {
-    template<class Iterator1, class Result, class Callback>
-    static size_t process(Iterator1 startFirst, Iterator1 endFirst,
-                        Iterator1 startSecond, Iterator1 endSecond,
-                        Result& result, Callback&& callback)
+    template<class T, class Callback>
+    static BinaryReturnType process (const T& smaller, const T& bigger, Callback&& callback)
     {
         size_t bits{0};
-        std::transform(startFirst, endFirst, startSecond, result.begin(), [&](const Bit& lhs, const Bit& rhs)
+        BinaryData result(bigger.size());
+        std::transform(smaller.crbegin(), smaller.crend(), bigger.crbegin(), result.rbegin(), [&](const Bit& lhs, const Bit& rhs)
         {
             Bit bit = callback(lhs, rhs);
             if(bit == 1) ++bits;
             return bit;
         });
-        size_t size = std::distance(startSecond, endSecond);
-        auto it = std::next(startFirst, size);
-        std::for_each(it, endSecond, [&result, &bits](const Bit& bit)
+
+        size_t size = std::distance(smaller.crbegin(), smaller.crend());
+        std::transform(std::next(bigger.crbegin(), size), bigger.crend(), std::next(result.rbegin(), size), [&](const Bit& bit)
         {
             if(bit == 1) ++bits;
-            result.push_front(bit);
+            return bit;
         });
 
-        return bits;
+        removeInsignificantBits(result);
+        return {result, bits};
+    }
+
+    template<class T, class Callback>
+    static BinaryReturnType conditionForProcess (const T& lhs, const T& rhs, Callback&& callback)
+    {
+        return lhs.bit() <= rhs.bit() ?
+                        process(lhs.Number(), rhs.Number(), callback) :
+                        process(rhs.Number(), lhs.Number(), callback);
     }
 
     template<class Callback>
-    static BigInt Transform(const BigInt& lhs, const BigInt& rhs, Callback callback)
+    static BigInt Transform(const BigInt& lhs, const BigInt& rhs, Callback&& callback)
     {
-        // TODO: add 1 if negative
-        if(lhs.sign() == rhs.sign())
-        {
-            size_t size = lhs.isNegative() ? std::min( lhs.bit()+1, rhs.bit()+1)
-                                           : std::min( lhs.bit(), rhs.bit());
-
-            BinaryData result(size);
-            size_t bits{0};
-            Predicate predicate(lhs.isNegative() ? Predicate::Case::NegativeNegative :
-                                                   Predicate::Case::PositivePositive, callback);
-
-            if(lhs.bit() <= rhs.bit())
-            {
-                bits = process(lhs.Number().crbegin(), lhs.Number().crend(),
-                        rhs.Number().crbegin(), rhs.Number().crend(),
-                        result, predicate);
-            }
-            else if(lhs.bit() > rhs.bit())
-            {
-                bits = process(rhs.Number().crbegin(), rhs.Number().crend(),
-                        lhs.Number().crbegin(), lhs.Number().crend(),
-                        result, predicate);
-            }
-
-            return BigInt(result, bits, Sign::Positive);
-        }
-        else
-        {
-            size_t size = lhs.isNegative() ? std::min( lhs.bit()+1, rhs.bit())
-                                           : std::min( lhs.bit(), rhs.bit()+1);
-            BinaryData result(size);
-            size_t bits{0};
-            Predicate predicate(lhs.isNegative() ? Predicate::Case::NegativePositive :
-                                                   Predicate::Case::PositiveNegative, callback);
-
-            if(lhs.bit() == size) // <=
-            {
-                bits = process(lhs.Number().crbegin(), lhs.Number().crend(),
-                        rhs.Number().crbegin(), rhs.Number().crend(),
-                        result, predicate);
-            }
-            else if(rhs.bit() == size)
-            {
-                bits = process(rhs.Number().crbegin(), rhs.Number().crend(),
-                        lhs.Number().crbegin(), lhs.Number().crend(),
-                        result, predicate);
-            }
-
-            return BigInt(result, bits, Sign::Positive);
-        }
-
-        return BigInt();
+        auto[result, bits] = conditionForProcess(lhs.isNegative() ? ~lhs : lhs,
+                                                 rhs.isNegative() ? ~rhs : rhs, callback);
+        return lhs.sign() == rhs.sign() ? BigInt(result, bits) : ~BigInt(result, bits);
     }
-
-    template<class Predicate>
-    void Transform(const BigInt& other, Predicate predicate)
-    {
-//        if(isNegative())
-
-//        if(number.size() <= other.bit())
-//        {
-//            std::transform(number.crbegin(), number.crend(), other.Number().crbegin(), number.rbegin(), predicate);
-//            auto it = std::next( other.Number().crbegin(), number.size() );
-//            std::for_each(it, other.Number().crend(), [&](const Bit& bit) { number.push_front(bit); });
-//        }
-//        else
-//            std::transform(other.Number().crbegin(), other.Number().crend(), number.crbegin(), number.rbegin(), predicate);
-
-    }
-
-    static std::unordered_map<char, std::function<Bit(const Bit&, const Bit&)>> predicates;
 
     State m_state;
 
@@ -118,11 +59,6 @@ class BigInt final
     BigInt(const State& state):
         m_state{state}
     {}
-
-    BigInt operator =(const std::string& data)
-    {
-        return BigInt(data);
-    }
 
 public:
     BigInt():
@@ -514,7 +450,7 @@ public:
 
     BigInt& operator ^= (const BigInt& other)
     {
-        Transform(other, predicates['^']);
+        *this = Transform(*this, other, predicates['^']);
         return *this;
     }
 
@@ -543,7 +479,7 @@ public:
 
     BigInt& operator |= (const BigInt& other)
     {
-        Transform(other, predicates['|']);
+        *this = Transform(*this, other, predicates['|']);
         return *this;
     }
 
@@ -572,7 +508,7 @@ public:
 
     BigInt& operator &= (const BigInt& other)
     {
-        Transform(other, predicates['&']);
+        *this = Transform(*this, other, predicates['&']);
         return *this;
     }
 
@@ -831,13 +767,6 @@ public:
         return (a*b) / gcd(a,b);
     }
 
-};
-
-std::unordered_map<char, std::function<Bit(const Bit&, const Bit&)>> callbacks
-{
-    { '^', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ?      0 : 1; } },
-    { '|', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 1; } },
-    { '&', [](const Bit& lhsBit, const Bit& rhsBit) { return lhsBit == rhsBit ? lhsBit : 0; } },
 };
 
 } // namespace BigInt
