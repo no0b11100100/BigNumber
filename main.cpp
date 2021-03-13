@@ -1,6 +1,7 @@
 #include <iostream>
 #include <chrono>
 #include <functional>
+#include "BigInt.hpp"
 
 using namespace std;
 
@@ -36,5 +37,11 @@ private:
 
 int main()
 {
+    BigInt::BigInt a(10);
+//    BigInt::BigInt b(std::string("10"));
+
+    for(auto v : a.Number()) cout << v << endl;
+//    for(auto v : b.Number()) cout << v << endl;
+
     return 0;
 }
