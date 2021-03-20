@@ -100,10 +100,22 @@ public:
     inline bool isUnit() const { return bit() == 1 && *Number().begin() == 1; }
     inline void MakePositive() { m_state.sign = Sign::Positive; }
     inline void MakeNegative() { m_state.sign = Sign::Negative; }
-    inline std::string toBinary() const { return FromBinary::ToBinary(m_state.number); }
-    inline std::string toOctal() const { return FromBinary::ToOctal(m_state.number); }
-    inline std::string toDecimal() const { return FromBinary::ToDecimal(m_state.number); }
-    inline std::string toHex() const { return FromBinary::ToHex(m_state.number); }
+    inline std::string toBinary() const { return FromBinary::ToBinary(m_state.number, m_state.sign); }
+    inline std::string toOctal() const
+    {
+        return isNegative() ? '-' + FromBinary::ToOctal(m_state.number)
+                            : FromBinary::ToOctal(m_state.number);
+    }
+    inline std::string toDecimal() const
+    {
+        return isNegative() ? '-' + FromBinary::ToDecimal(m_state.number)
+                            : FromBinary::ToDecimal(m_state.number);
+    }
+    inline std::string toHex() const
+    {
+        return  isNegative() ? '-' + FromBinary::ToHex(m_state.number)
+                             : FromBinary::ToHex(m_state.number);
+    }
 
     friend BigInt operator + (const BigInt& lhs, const BigInt& rhs)
     {
@@ -683,7 +695,7 @@ public:
     static std::vector<BigInt> factorize(BigInt number)
     {
         std::vector<BigInt> factors;
-        for(BigInt i(BinaryData({1,0})); i <= BigInt(square(number.Number())); ++i)
+        for(BigInt i(BinaryData({1,0}), 1); i <= BigInt(square(number.Number())); ++i)
         {
             while((number%i).isZero())
             {

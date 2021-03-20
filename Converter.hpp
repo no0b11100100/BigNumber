@@ -200,13 +200,40 @@ class FromBinary
             result.insert(result.cbegin(), toChar(transfer));
     }
 
+    static void toAdditionalCode(std::string& result, const BinaryData& binary)
+    {
+
+    }
+
 public:
-    static std::string ToBinary(const BinaryData& binary)
+    static std::string ToBinary(const BinaryData& binary, Sign sign)
     {
         std::string result;
         result.reserve(binary.size());
-        std::copy(binary.crbegin(), binary.crend(), std::back_inserter(result));
-        return result;
+        if(sign == Sign::Positive)
+        {
+            std::copy(binary.crbegin(), binary.crend(), result.rbegin());
+            return result;
+        }
+        else
+        {
+            bool isIncremented{false};
+            std::transform(binary.crbegin(), binary.crend(), result.rbegin(), [&isIncremented](const Bit& bit) -> Bit
+            {
+                Bit newBit = bit == 1 ? 0 : 1;
+                if(isIncremented == false && newBit == 0)
+                {
+                    isIncremented = true;
+                    return static_cast<Bit>(1);
+                }
+                if(isIncremented == false && newBit == 1)
+                    return static_cast<Bit>(0);
+
+                if(isIncremented == true)
+                    return newBit;
+            });
+            return '1' + result;
+        }
     }
 
     static std::string ToOctal(const BinaryData& binary)
