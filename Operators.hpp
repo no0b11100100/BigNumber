@@ -484,8 +484,7 @@ struct Square
     {
         assert(number.size() != 0);
         BinaryData tmp(number.size()-1);
-        BinaryData result;
-        result.push_front(1);
+        BinaryData result(1);
 
         while(!isZero(number))
         {

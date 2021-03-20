@@ -230,6 +230,20 @@ public:
         return result;
     }
 
+    template<class T>
+    static T toInt(const BinaryData& binary)
+    {
+        size_t degree = 1;
+        T result = 0;
+        for(auto it = binary.crbegin(); it != binary.crend(); ++it)
+        {
+            if(*it == 1) result += degree;
+            degree *= 2;
+        }
+
+        return result;
+    }
+
     static std::string ToHex(const BinaryData& binary)
     {
         return convertHexOrOctalToBinary<m_HexChanSize>(binary);
