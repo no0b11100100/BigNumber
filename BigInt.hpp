@@ -143,13 +143,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator + (const BigInt& lhs, T rhs)
     {
-        return operator+(lhs, BigInt(toBinary(rhs)));
+        return operator+(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator + (T lhs, const BigInt& rhs)
     {
-        return operator+(BigInt(toBinary(lhs)), rhs);
+        return operator+(BigInt(lhs), rhs);
     }
 
     BigInt& operator += (const BigInt& other)
@@ -161,7 +161,7 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     BigInt& operator += (T other)
     {
-        *this = operator+(*this, BigInt(toBinary(other)));
+        *this = operator+(*this, BigInt(other));
         return *this;
     }
 
@@ -192,13 +192,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator - (const BigInt& lhs, T rhs)
     {
-        return operator-(lhs, BigInt(toBinary(rhs)));
+        return operator-(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator - (T lhs, const BigInt& rhs)
     {
-        return operator-(BigInt(toBinary(lhs)), rhs);
+        return operator-(BigInt(lhs), rhs);
     }
 
     BigInt& operator -= (const BigInt& other)
@@ -230,13 +230,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator * (const BigInt& lhs, T rhs)
     {
-        return operator*(lhs, BigInt(toBinary(rhs)));
+        return operator*(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator * (T lhs, const BigInt& rhs)
     {
-        return operator*(BigInt(toBinary(lhs)), rhs);
+        return operator*(BigInt(lhs), rhs);
     }
 
     BigInt& operator *= (const BigInt& other)
@@ -267,13 +267,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator / (const BigInt& lhs, T rhs)
     {
-        return operator/(lhs, BigInt(toBinary(rhs)));
+        return operator/(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator / (T lhs, const BigInt& rhs)
     {
-        return operator/(BigInt(toBinary(lhs)), rhs);
+        return operator/(BigInt(lhs), rhs);
     }
 
     BigInt& operator /= (const BigInt& other)
@@ -300,13 +300,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator % (const BigInt& lhs, T rhs)
     {
-        return operator%(lhs, BigInt(toBinary(rhs)));
+        return operator%(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator % (T lhs, const BigInt& rhs)
     {
-        return operator%(BigInt(toBinary(lhs)), rhs);
+        return operator%(BigInt(lhs), rhs);
     }
 
     BigInt& operator %= (const BigInt& other)
@@ -333,13 +333,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator < (const BigInt& lhs, T rhs)
     {
-        return operator <(lhs, BigInt(toBinary(rhs)));
+        return operator <(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator < (T lhs, const BigInt& rhs)
     {
-        return operator <(BigInt(toBinary(lhs)), rhs);
+        return operator <(BigInt(lhs), rhs);
     }
 
     friend bool operator <= (const BigInt& lhs, const BigInt& rhs)
@@ -350,13 +350,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator <= (const BigInt& lhs, T rhs)
     {
-        return operator <=(lhs, BigInt(toBinary(rhs)));
+        return operator <=(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator <= (T lhs, const BigInt& rhs)
     {
-        return operator <=(BigInt(toBinary(lhs)), rhs);
+        return operator <=(BigInt(lhs), rhs);
     }
 
     friend bool operator > (const BigInt& lhs, const BigInt& rhs)
@@ -370,13 +370,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator > (const BigInt& lhs, T rhs)
     {
-        return operator >(lhs, BigInt(toBinary(rhs)));
+        return operator >(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator > (T lhs, const BigInt& rhs)
     {
-        return operator >(BigInt(toBinary(lhs)), rhs);
+        return operator >(BigInt(lhs), rhs);
     }
 
     friend bool operator >= (const BigInt& lhs, const BigInt& rhs)
@@ -387,13 +387,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator >= (const BigInt& lhs, T rhs)
     {
-        return operator >=(lhs, BigInt(toBinary(rhs)));
+        return operator >=(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator >= (T lhs, const BigInt& rhs)
     {
-        return operator >=(BigInt(toBinary(lhs)), rhs);
+        return operator >=(BigInt(lhs), rhs);
     }
 
     friend bool operator == (const BigInt& lhs, const BigInt& rhs)
@@ -405,13 +405,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator == (const BigInt& lhs, T rhs)
     {
-        return operator ==(lhs, BigInt(toBinary(rhs)));
+        return operator ==(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator == (T lhs, const BigInt& rhs)
     {
-        return operator ==(BigInt(toBinary(lhs)), rhs);
+        return operator ==(BigInt(lhs), rhs);
     }
 
     friend bool operator != (const BigInt& lhs, const BigInt& rhs)
@@ -422,13 +422,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator != (const BigInt& lhs, T rhs)
     {
-        return operator !=(lhs, BigInt(toBinary(rhs)));
+        return operator !=(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend bool operator != (T lhs, const BigInt& rhs)
     {
-        return operator !=(BigInt(toBinary(lhs)), rhs);
+        return operator !=(BigInt(lhs), rhs);
     }
 
     friend BigInt operator ^ (const BigInt& lhs, const BigInt& rhs)
@@ -439,13 +439,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator ^ (const BigInt& lhs, T rhs)
     {
-        return operator^(lhs, BigInt(toBinary(rhs)));
+        return operator^(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator ^ (T lhs, const BigInt& rhs)
     {
-        return operator^(BigInt(toBinary(lhs)), rhs);
+        return operator^(BigInt(lhs), rhs);
     }
 
     BigInt& operator ^= (const BigInt& other)
@@ -468,13 +468,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator | (const BigInt& lhs, T rhs)
     {
-        return operator|(lhs, BigInt(toBinary(rhs)));
+        return operator|(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator | (T lhs, const BigInt& rhs)
     {
-        return operator|(BigInt(toBinary(lhs)), rhs);
+        return operator|(BigInt(lhs), rhs);
     }
 
     BigInt& operator |= (const BigInt& other)
@@ -497,13 +497,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator & (const BigInt& lhs, T rhs)
     {
-        return operator&(lhs, BigInt(toBinary(rhs)));
+        return operator&(lhs, BigInt(rhs));
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
     friend BigInt operator & (T lhs, const BigInt& rhs)
     {
-        return operator&(BigInt(toBinary(lhs)), rhs);
+        return operator&(BigInt(lhs), rhs);
     }
 
     BigInt& operator &= (const BigInt& other)
@@ -555,7 +555,7 @@ public:
     {
         BinaryData newResult = lhs.Number();
         leftShift(newResult, offset);
-        return BigInt(newResult, lhs.count(), Sign::Positive); // TODO: sign
+        return BigInt(newResult, lhs.count(), lhs.sign());
     }
 
     BigInt& operator <<= (const size_t offset)
@@ -569,7 +569,7 @@ public:
         BinaryData newResult = lhs.Number();
         size_t units = lhs.count();
         rightShift(newResult, units, offset);
-        return BigInt(newResult, units, Sign::Positive); // TODO: count bits
+        return BigInt(newResult, units, lhs.sign());
     }
 
     BigInt& operator >>= (const size_t offset)
@@ -632,6 +632,19 @@ public:
             Increment(m_state.number, m_state.bitSet);
 
         return tmp;
+    }
+
+    template<class T, class = typename std::enable_if_t<is_integer<T>()>>
+    explicit operator T()
+    {
+        T limit = isNegative() ? std::numeric_limits<T>::min()
+                                    : std::numeric_limits<T>::max();
+
+        if(ToBinary::convert(limit).number.size() <= bit())
+            return isNegative() ? -1*FromBinary::toInt<T>(Number())
+                              : FromBinary::toInt<T>(Number());
+
+        return 0;
     }
 
     static void abs(BigInt& number)
@@ -719,8 +732,6 @@ public:
         bool handleOdd {false};
         size_t uptoNumber {nElem};
 
-        BinaryData two(2);
-
         if((nElem & 1) == 1)
         {
             --uptoNumber;
@@ -731,14 +742,14 @@ public:
         BigInt nextMulti(uptoNumber);
         BigInt factorial(BinaryData(1), 1);
 
-        while(less(nextSum.Number(), two)) // nextSum >= 2
+        while(nextSum >= 2)
         {
             factorial *= nextMulti;
-//            nextSum -= 2;
+            nextSum -= 2;
             nextMulti += nextSum;
         }
 
-//        if (handleOdd) factorial *= nElem;
+        if (handleOdd) factorial *= nElem;
 
         return factorial;
     }
