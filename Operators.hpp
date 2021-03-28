@@ -45,7 +45,7 @@ void rightShift(BinaryData& data, const size_t loops = 1) noexcept
             if(data.front() == 1) data.front() = 0;
             break;
         }
-        data.pop_front();
+        data.pop_back();
     }
 }
 
@@ -65,7 +65,7 @@ void rightShift(BinaryData& data, size_t& bits, const size_t loops = 1) noexcept
         }
 
         if(*it == 1) --bits;
-        data.pop_front();
+        data.pop_back();
     }
 }
 
@@ -417,10 +417,8 @@ struct Division
 
     BinaryReturnType operator()(BinaryData dividend, BinaryData divisor, Mode mode)
     {
-        assert(greater( dividend, divisor ) == true);
         BinaryData result;
         BinaryData tmp = divisor;
-        BinaryData shiftedData(1);
         size_t units = 0;
 
         while(greatOrEqual(dividend, divisor))
@@ -443,8 +441,7 @@ struct Division
     }
 
 private:
-
-    static BinaryData PrepareShiftedNumber(const BinaryData& data, size_t offset)
+    BinaryData PrepareShiftedNumber(const BinaryData& data, size_t offset)
     {
         BinaryData result = data;
         for(size_t i = 0; i < offset; ++i)
@@ -453,7 +450,7 @@ private:
         return result;
     }
 
-    static BinaryData PrepareShiftedNumber(size_t offset)
+    BinaryData PrepareShiftedNumber(size_t offset)
     {
         BinaryData result{1};
         for(size_t i = 0; i < offset; ++i)
@@ -466,112 +463,68 @@ private:
 
 struct Multiplication
 {
-    BinaryReturnType operator()(const BinaryData& lhs, const BinaryData& rhs)
-    {
-        return proccess(lhs.crbegin(), lhs.crend(), rhs);
-    }
-
-private:
-
-    size_t m_units;
-
-    void handleNextZero(BinaryData& result, BinaryData& tmp, const BinaryData& other, size_t& offset)
-    {
-        std::tie(result, m_units) = addition(result, tmp);
-        if(offset > 1) std::tie(result, m_units) = subtraction(result, other);
-        offset = 0;
-    }
-
-    void handleZeroOne(BinaryData& result, const BinaryData& term)
-    {
-        std::tie(result, m_units) = addition(result, term);
-    }
-
-    void hangleOneZero(BinaryData& result, const BinaryData& term)
-    {
-        auto tmp = result;
-        std::tie(result, m_units) = addition(result, term);
-        std::tie(result, m_units) = subtraction(result, tmp);
-    }
-
-    template<class Iterator>
-    BinaryReturnType proccess(Iterator startIt, Iterator endIt, const BinaryData& other)
+    BinaryReturnType operator()(const BinaryData& multiplicand, const BinaryData& multiplier)
     {
         BinaryData result;
-        BinaryData tmp = other;
-        size_t offset = 0;
-        for(; startIt != endIt; ++startIt)
+        BinaryData tmp = multiplier;
+        auto changeSearchedBit = [](const Bit& bit) -> Bit { return bit == 1 ? 0 : 1; };
+        Bit searchedBit = changeSearchedBit(multiplicand.back());
+        size_t dist = 0, offset = dist;
+        bool isFirstIter{false};
+
+        for(auto it = multiplicand.crbegin(); it != multiplicand.crend();)
         {
-            if(*startIt == 1)
-            {
-                if(*std::prev(startIt) == 0)
-                    handleZeroOne(result, tmp);
-
-                leftShift(tmp);
-            }
-            else
-            {
-                if(*std::prev(startIt) == 1)
-                    hangleOneZero(result, tmp);
-
-                leftShift(tmp);
-            }
+            it = find_first_of(it, multiplicand.crend(), searchedBit);
+            dist = std::distance(std::next(multiplicand.crbegin(), offset), it);
+            offset += dist;
+            leftShift(tmp, !isFirstIter ? dist : --dist);
+            isFirstIter = true;
+            searchedBit == 1 ?  ZeroToOne(result, tmp) : OneToZero(result, tmp, dist);
+            searchedBit = changeSearchedBit(searchedBit);
         }
 
         return {result, m_units};
     }
 
+private:
+    template<class Iterator>
+    Iterator find_first_of(Iterator start, Iterator end, const Bit& bit) const
+    {
+        for(; start != end; ++start)
+            if(*start == bit)
+                return start;
+
+        return end;
+    }
+
+    BinaryData PrepareShiftedNumber(const BinaryData& data, size_t offset)
+    {
+        BinaryData result = data;
+        for(size_t i = 0; i < offset; ++i)
+            rightShift(result);
+
+        return result;
+    }
+
+    // 1 0
+    void OneToZero(BinaryData& result, BinaryData& tmp, const size_t& offset)
+    {
+        std::tie(result, m_units) = addition(result, tmp);
+        std::tie(result, m_units) = subtraction(result, PrepareShiftedNumber(tmp, offset));
+        leftShift(tmp);
+    }
+
+    // 0 1
+    void ZeroToOne(BinaryData& result, BinaryData& tmp)
+    {
+        std::tie(result, m_units) = addition(result, tmp);
+        leftShift(tmp);
+    }
+
+    size_t m_units;
+
 } multiplication;
 
-/*
-    1010 -> 10
-    1100 1100 110 -> 1638
-    110*10 -> 1100 -> 10001001100
-
-    num = 25
-    res = 0
-    0 -> num << 1 -> 50
-    1 -> res += num = 50, num << 1 = 100
-    1 -> res += num = 150, num << 1 = 200
-    0 -> num = 400
-    0 -> num = 800
-    1 -> res += num = 950, num = 1600
-    1 -> res += num = 2550, num = 3200
-    0 -> num = 6400
-    0 -> num = 12800
-    1 -> res = 15450, num = 25600
-    1 -> res = 40950, num = 51200
-
-    0 1 -> res = res + num
-    1 0 -> res = num - res
-
-    0 -> num << 1 = 50
-    1 -> res += num = 50, num << 1 = 100
-    1 -> num << 1 = 200
-    0 -> res = num - ?? = 200 - 50 = 150, num << 1 = 400
-    0 -> num << 1 = 800
-    1 -> res += num = 150 + 800 = 950, num << 1 = 1600
-    1 -> num << 1 = 3200
-    0 -> res = num -?? = 3200 - 950 = 2250, num << 1 = 6400
-    0 -> num << 1 = 12800
-    1 -> res += num = 2850 + 12800 = 15650, num << 1 = 25600
-    1 -> num << 1 = 51200
-    res = num - ?? = 51200 - 15650 ->
-
-    1 + 2 + 5 + 6 + 9 + 10 -> -> 2 + 4 + 32 + 64 + 512 + 1024 -> 50 + 100 + 800 + 1600 + 12800 + 25600 -> 40950
-    0 + 3 + 4 + 7 + 8 -> 1 + 8 + 16 + 128 + 256 -> 25 + 200 + 400 + 3200 + 6400 -> 10225
-
-    tmp = 1010
-    offset = 0
-    0 -> tmp = 10100
-    1 -> offset = 1, tmp = 101000
-    1 -> offset = 2, tmp = 1010000
-    1 -> offset = 3, tmp = 1010000 -> result = 1011010(80), offset = 0, tmp = 10100000
-    0 -> tmp = 101000000
-    1 -> offset = 1, tmp = 1010000000
-    1 -> offset = 2, tmp = 101 000 00 00 -> result = 1011010000(720) - 1010(10) -> 710
-
-*/
 
 struct Square
 {
