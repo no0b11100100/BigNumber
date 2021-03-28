@@ -356,7 +356,7 @@ public:
 
     friend bool operator <= (const BigInt& lhs, const BigInt& rhs)
     {
-        return greater(rhs.Number(), lhs.Number());
+        return lessOrEqual(lhs.Number(), rhs.Number());
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
@@ -393,7 +393,7 @@ public:
 
     friend bool operator >= (const BigInt& lhs, const BigInt& rhs)
     {
-        return less(rhs.Number(), lhs.Number());
+        return greatOrEqual(lhs.Number(), rhs.Number());
     }
 
     template<class T, class = typename std::enable_if_t<is_integer<T>>>
@@ -659,9 +659,10 @@ public:
         return 0;
     }
 
-    static void abs(BigInt& number)
+    static BigInt abs(const BigInt& number)
     {
-        if(number.isNegative()) number.MakePositive();
+        return number.isNegative() ? BigInt(number.Number(), number.bit(), Sign::Positive)
+                                   : number;
     }
 
     static BigInt Pow(const BigInt& number, size_t pow)
@@ -695,7 +696,7 @@ public:
     static std::vector<BigInt> factorize(BigInt number)
     {
         std::vector<BigInt> factors;
-        for(BigInt i(BinaryData({1,0}), 1); i <= BigInt(square(number.Number())); ++i)
+        for(BigInt i(BinaryData({1,0}), 1); i <= Sqrt(number); ++i)
         {
             while((number%i).isZero())
             {
@@ -790,6 +791,27 @@ public:
         return (a*b) / gcd(a,b);
     }
 
+    static BigInt Sqrt(BigInt number)
+    {
+        if(number.isNegative() || number.isZero()) return BigInt();
+        BigInt result;
+        const short roundingToLowPow2 = 2;
+        BigInt bit = 1 << (number.bit()-roundingToLowPow2);
+
+        while (!bit.isZero())
+        {
+            if(auto add = result + bit; number >= add)
+            {
+                number -= add;
+                result = (result>>1) + bit;
+            }
+            else result >>= 1;
+
+            bit >>= 2;
+        }
+
+        return result;
+    }
 };
 
 } // namespace BigInt

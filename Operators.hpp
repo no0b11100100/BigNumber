@@ -36,36 +36,42 @@ void leftShift(BinaryData& data, size_t loops = 1) noexcept
     }
 }
 
-void rightShift(BinaryData& data, const size_t loops = 1) noexcept
+void rightShift(BinaryData& data, size_t& units, size_t loops)
 {
     for(size_t i{0}; i < loops; ++i)
     {
+        Bit& bit = data.back();
         if(data.size() == 1)
         {
-            if(data.front() == 1) data.front() = 0;
-            break;
+            if(bit == 1)
+            {
+                bit = 0;
+                --units;
+                break;
+            }
         }
-        data.pop_back();
+        else
+        {
+            if(bit == 1) --units;
+            data.pop_back();
+        }
     }
 }
 
-void rightShift(BinaryData& data, size_t& bits, const size_t loops = 1) noexcept
+void rightShift(BinaryData& data, size_t loops = 1)
 {
     for(size_t i{0}; i < loops; ++i)
     {
-        auto it = data.begin();
+        Bit& bit = data.back();
         if(data.size() == 1)
         {
-            if(*it == 1)
+            if(bit == 1)
             {
-                *it = 0;
-                --bits;
+                bit = 0;
+                break;
             }
-            break;
         }
-
-        if(*it == 1) --bits;
-        data.pop_back();
+        else data.pop_back();
     }
 }
 
@@ -441,21 +447,18 @@ struct Division
     }
 
 private:
+
     BinaryData PrepareShiftedNumber(const BinaryData& data, size_t offset)
     {
         BinaryData result = data;
-        for(size_t i = 0; i < offset; ++i)
-            result.emplace_back(0);
-
+        leftShift(result, offset);
         return result;
     }
 
     BinaryData PrepareShiftedNumber(size_t offset)
     {
         BinaryData result{1};
-        for(size_t i = 0; i < offset; ++i)
-            result.emplace_back(0);
-
+        leftShift(result, offset);
         return result;
     }
 
@@ -487,6 +490,9 @@ struct Multiplication
     }
 
 private:
+
+    size_t m_units;
+
     template<class Iterator>
     Iterator find_first_of(Iterator start, Iterator end, const Bit& bit) const
     {
@@ -500,9 +506,7 @@ private:
     BinaryData PrepareShiftedNumber(const BinaryData& data, size_t offset)
     {
         BinaryData result = data;
-        for(size_t i = 0; i < offset; ++i)
-            rightShift(result);
-
+        rightShift(result, offset);
         return result;
     }
 
@@ -521,38 +525,4 @@ private:
         leftShift(tmp);
     }
 
-    size_t m_units;
-
 } multiplication;
-
-
-struct Square
-{
-    BinaryData operator()(BinaryData number)
-    {
-        assert(number.size() != 0);
-        BinaryData tmp(number.size()-1);
-        BinaryData result(1);
-
-        while(!isZero(number))
-        {
-            if( auto[add, bits] = addition(result, tmp); less(number, add ) )
-            {
-                auto [sub, ignore] = subtraction(result, tmp);
-                std::tie(number, std::ignore) =  subtraction(number, sub);
-                rightShift(result);
-                std::tie(result, std::ignore) = addition(result, tmp);
-            }
-            else rightShift(result);
-
-            rightShift(tmp);
-            rightShift(tmp);
-        }
-
-        return result;
-    }
-
-private:
-    bool isZero(const BinaryData& number) const { return number.size() == 1 && number.front() == 0; }
-
-} square;
