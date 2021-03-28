@@ -200,11 +200,6 @@ class FromBinary
             result.insert(result.cbegin(), toChar(transfer));
     }
 
-    static void toAdditionalCode(std::string& result, const BinaryData& binary)
-    {
-
-    }
-
 public:
     static std::string ToBinary(const BinaryData& binary, Sign sign)
     {
