@@ -47,7 +47,7 @@ class BigInt final
     {
         auto[result, bits] = conditionForProcess(lhs.isNegative() ? ~lhs : lhs,
                                                  rhs.isNegative() ? ~rhs : rhs, callback);
-        return lhs.sign() == rhs.sign() ? BigInt(result, bits) : ~BigInt(result, bits);
+        return lhs.sign() == rhs.sign() ? BigInt(result, bits) : ~(BigInt(result, bits));
     }
 
     State m_state;

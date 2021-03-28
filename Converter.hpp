@@ -327,6 +327,12 @@ class ToBinary
     {
         BinaryData binary;
         size_t bits{0};
+        Sign sign = Sign::Positive;
+        if(number < 0)
+        {
+            number = -number;
+            sign = Sign::Negative;
+        }
         if(number == 0) return State();
         while(number > 0)
         {
@@ -335,7 +341,7 @@ class ToBinary
             number /= 2;
         }
 
-        return State(binary, bits, number < 0 ? Sign::Negative : Sign::Positive);
+        return State(binary, bits, sign);
     }
 
 public:
