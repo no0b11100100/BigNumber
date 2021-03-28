@@ -12,6 +12,7 @@
 #include <cassert>
 #include <functional>
 #include <iostream>
+#include <algorithm>
 
 enum class Sign : bool
 {
@@ -156,8 +157,8 @@ class FromBinary
             tempResult.push_front(symbol);
         }
 
-        std::string result;
-        std::move(tempResult.cbegin(), tempResult.cend(), std::back_inserter(result));
+        std::string result(std::max(static_cast<size_t>(1), tempResult.size()), '0');
+        std::move(tempResult.begin(), tempResult.end(), result.begin());
         return result;
     }
 
@@ -204,28 +205,29 @@ public:
     static std::string ToBinary(const BinaryData& binary, Sign sign)
     {
         std::string result;
-        result.reserve(binary.size());
+
         if(sign == Sign::Positive)
         {
-            std::copy(binary.crbegin(), binary.crend(), result.rbegin());
+            std::transform(binary.crbegin(), binary.crend(), std::back_inserter(result), [](const Bit& bit) -> char
+            { return bit + '0'; });
             return result;
         }
         else
         {
             bool isIncremented{false};
-            std::transform(binary.crbegin(), binary.crend(), result.rbegin(), [&isIncremented](const Bit& bit) -> Bit
+            std::transform(binary.crbegin(), binary.crend(), std::back_inserter(result), [&isIncremented](const Bit& bit) -> char
             {
                 Bit newBit = bit == 1 ? 0 : 1;
                 if(isIncremented == false && newBit == 0)
                 {
                     isIncremented = true;
-                    return static_cast<Bit>(1);
+                    return '1';
                 }
                 if(isIncremented == false && newBit == 1)
-                    return static_cast<Bit>(0);
+                    return '0';
 
                 if(isIncremented == true)
-                    return newBit;
+                    return (newBit + '0');
             });
             return '1' + result;
         }
@@ -233,11 +235,12 @@ public:
 
     static std::string ToOctal(const BinaryData& binary)
     {
-        return convertHexOrOctalToBinary<m_octalChanSize>(binary);
+        return binary.empty() ? "0" : convertHexOrOctalToBinary<m_octalChanSize>(binary);
     }
 
     static std::string ToDecimal(const BinaryData& binary)
     {
+        if(binary.empty()) return "0";
         std::deque<char> tempResult;
         std::string degree = "1";
 
@@ -247,7 +250,7 @@ public:
             multiplicationBy2(degree);
         }
 
-        std::string result(tempResult.size(), '0');
+        std::string result(std::max(static_cast<size_t>(1), tempResult.size()), '0');
         std::move(tempResult.begin(), tempResult.end(), result.begin());
         return result;
     }
@@ -268,7 +271,7 @@ public:
 
     static std::string ToHex(const BinaryData& binary)
     {
-        return convertHexOrOctalToBinary<m_HexChanSize>(binary);
+        return binary.empty() ? "0" : convertHexOrOctalToBinary<m_HexChanSize>(binary);
     }
 
 };
@@ -289,7 +292,7 @@ class ToBinary
         unsigned int dividend;
         unsigned int quot;
 
-        offset = number.find_first_not_of('0', offset);
+        offset = number.find_first_not_of("0-", offset);
         auto it = std::next(number.begin(), offset);
         std::transform(it, number.end(), it, [&](const char& value)
         {
@@ -310,6 +313,8 @@ class ToBinary
         BinaryData binary;
         size_t bits{0};
         size_t offset{0};
+        Sign sign = *number.begin() == '-' ? Sign::Negative
+                                           : Sign::Positive;
         while(offset != number.size())
         {
             Bit bit = getRemainder(number, offset);
@@ -317,9 +322,7 @@ class ToBinary
             binary.push_front(bit);
         }
 
-        return State(binary, bits, *number.begin() == '-' ?
-                                   Sign::Negative :
-                                   Sign::Positive);
+        return State(binary, bits, sign);
     }
 
     template<class T>
