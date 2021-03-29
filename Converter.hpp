@@ -208,8 +208,8 @@ public:
 
         if(sign == Sign::Positive)
         {
-            std::transform(binary.crbegin(), binary.crend(), std::back_inserter(result), [](const Bit& bit) -> char
-            { return bit + '0'; });
+            std::transform(binary.cbegin(), binary.cend(), std::back_inserter(result), [](const Bit& bit) -> char
+            { return toChar(bit); });
             return result;
         }
         else
@@ -227,20 +227,21 @@ public:
                     return '0';
 
                 if(isIncremented == true)
-                    return (newBit + '0');
+                    return toChar(newBit);
             });
+
+            std::reverse(result.begin(), result.end());
             return '1' + result;
         }
     }
 
     static std::string ToOctal(const BinaryData& binary)
     {
-        return binary.empty() ? "0" : convertHexOrOctalToBinary<m_octalChanSize>(binary);
+        return convertHexOrOctalToBinary<m_octalChanSize>(binary);
     }
 
     static std::string ToDecimal(const BinaryData& binary)
     {
-        if(binary.empty()) return "0";
         std::deque<char> tempResult;
         std::string degree = "1";
 
@@ -271,7 +272,7 @@ public:
 
     static std::string ToHex(const BinaryData& binary)
     {
-        return binary.empty() ? "0" : convertHexOrOctalToBinary<m_HexChanSize>(binary);
+        return convertHexOrOctalToBinary<m_HexChanSize>(binary);
     }
 
 };
@@ -292,7 +293,7 @@ class ToBinary
         unsigned int dividend;
         unsigned int quot;
 
-        offset = number.find_first_not_of("0-", offset);
+        offset = number.find_first_not_of("0", offset);
         auto it = std::next(number.begin(), offset);
         std::transform(it, number.end(), it, [&](const char& value)
         {
@@ -310,11 +311,18 @@ class ToBinary
 
     static State fromDecimal(std::string number)
     {
+        if(number == "-0" || number == "0") return State();
         BinaryData binary;
         size_t bits{0};
         size_t offset{0};
-        Sign sign = *number.begin() == '-' ? Sign::Negative
-                                           : Sign::Positive;
+        Sign sign =  Sign::Positive;
+
+        if(number.front() == '-')
+        {
+            sign = Sign::Negative;
+            offset = 1;
+        }
+
         while(offset != number.size())
         {
             Bit bit = getRemainder(number, offset);

@@ -667,27 +667,28 @@ public:
 
     static BigInt Pow(const BigInt& number, size_t pow)
     {
-        BigInt result;
-        static auto routingTo2Pow = [](size_t pow){
-            pow--;
-            pow |= pow >> 1;
-            pow |= pow >> 2;
-            pow |= pow >> 4;
-            pow |= pow >> 8;
-            pow |= pow >> 16;
-            pow |= pow >> 32;
-            return ++pow;
+        static auto countBits = [](const size_t& number) -> size_t
+        {
+            return static_cast<size_t>(log2(number));
         };
+
+        BigInt result(1);
+        BigInt tempResult = number;
 
         while(pow)
         {
-            size_t routing = routingTo2Pow(pow);
-            BigInt tmpRes = number;
-            for(size_t i {0}; i < routing; ++i)
-                tmpRes *= tmpRes;
+            if(pow == 1)
+            {
+                result *= number;
+                break;
+            }
+            size_t count = countBits(pow);
+            for(size_t i{0}; i < count; ++i)
+                tempResult *= tempResult;
 
-            result += tmpRes;
-            pow -= routing;
+            pow -= 1 << count;
+            result *= tempResult;
+            tempResult = number;
         }
 
         return result;
