@@ -700,16 +700,20 @@ public:
     static std::vector<BigInt> factorize(BigInt number)
     {
         std::vector<BigInt> factors;
-        for(BigInt i(BinaryData({1,0}), 1); i <= Sqrt(number); ++i)
+        BigInt divisor(2);
+        while(divisor*divisor <= number)
         {
-            while((number%i).isZero())
+            if((number%divisor).isZero())
             {
-                factors.push_back(i);
-                number /= i;
+                factors.push_back(divisor);
+                number /= divisor;
             }
+            else if(divisor == 2) divisor = BigInt(3);
+            else divisor += 2;
         }
 
-        if(number.isUnit()) factors.push_back(number);
+        factors.push_back(number);
+
         return factors;
     }
 
@@ -839,7 +843,6 @@ public:
 
         return number.isUnit();
     }
-
 };
 
 } // namespace BigInt
