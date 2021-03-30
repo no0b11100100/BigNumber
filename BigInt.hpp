@@ -232,8 +232,8 @@ public:
         Sign sign = lhs.sign() == rhs.sign() ? Sign::Positive : Sign::Negative;
         if(lhs.isUnit()) return rhs;
         if(rhs.isUnit()) return lhs;
-        if(lhs.is2Pow()) return rhs << lhs.bit();
-        if(rhs.is2Pow()) return lhs << rhs.bit();
+        if(lhs.is2Pow()) return rhs << lhs.bit()-1;
+        if(rhs.is2Pow()) return lhs << rhs.bit()-1;
 
         auto[result, bits] = multiplication(lhs.Number(), rhs.Number());
         return BigInt(result, bits, sign);
@@ -269,7 +269,7 @@ public:
         if(rhs.isZero()) throw "Division by zero";
         if(lhs < rhs) return BigInt();
         if(rhs.isUnit()) return lhs;
-        if(rhs.is2Pow()) return lhs >> rhs.bit();
+        if(rhs.is2Pow()) return lhs >> (rhs.bit()-1);
 
         Sign sign = lhs.sign() == rhs.sign() ? Sign::Positive : Sign::Negative;
         auto [result, bits] = division(lhs.Number(), rhs.Number(), Division::Mode::Div);
@@ -667,6 +667,9 @@ public:
 
     static BigInt Pow(const BigInt& number, size_t pow)
     {
+        if(pow == 0) return BigInt(1);
+        if(pow == 1) return number;
+
         static auto countBits = [](const size_t& number) -> size_t
         {
             return static_cast<size_t>(log2(number));
@@ -712,7 +715,7 @@ public:
 
     static BigInt fibonacci(std::size_t nElem)
     {
-        BigInt a(BinaryData(1), 1), b(BinaryData(1), 1), c(BinaryData(1), 1), rd(BinaryData(1), 1);
+        BigInt a(1), b(1), c(1), rd(1);
         BigInt ta, tb, rc, tc, d;
 
         while(nElem)
@@ -741,7 +744,7 @@ public:
     static BigInt factorial(std::size_t nElem)
     {
         if(nElem == 1 || nElem == 0)
-            return BigInt(BinaryData(1), 1, Sign::Positive);
+            return BigInt(1);
 
         bool handleOdd {false};
         size_t uptoNumber {nElem};
@@ -754,7 +757,7 @@ public:
 
         BigInt nextSum(uptoNumber);
         BigInt nextMulti(uptoNumber);
-        BigInt factorial(BinaryData(1), 1);
+        BigInt factorial(1);
 
         while(nextSum >= 2)
         {
@@ -776,14 +779,14 @@ public:
 
         if (u.isEven())
         {
-            if (v.isOdd()) return gcd(u>>1, v);
-            else return gcd(u>>1, v>>1) << 1;
+            if (v.isOdd()) return gcd(u/2, v);
+            else return 2 * gcd(u/2, v/2);
         }
         else
         {
-            if (v.isEven()) return gcd(u, v>>1);
-            if (u > v) return gcd((u - v)>>1, v);
-            else return gcd((v - u)>>1, u);
+            if (v.isEven()) return gcd(u, v/2);
+            if (u > v) return gcd((u - v)/2, v);
+            else return gcd((v - u)/2, u);
         }
     }
 
@@ -794,7 +797,7 @@ public:
 
     static BigInt Sqrt(BigInt number)
     {
-        if(number.isNegative() || number.isZero()) return BigInt();
+        if(number.isNegative() || number.isZero() || number.isUnit()) return BigInt();
         BigInt result;
         const short roundingToLowPow2 = 2;
         BigInt bit = 1 << (number.bit()-roundingToLowPow2);
@@ -813,6 +816,30 @@ public:
 
         return result;
     }
+
+    static BigInt log(const BigInt& number)
+    {
+        return BigInt(number.bit()-1);
+    }
+
+    static BigInt lg(const BigInt& number)
+    {
+        const short base = 10;
+        if(number < base) return BigInt();
+        return number.toDecimal().size()-1;
+    }
+
+    static bool isPow(BigInt number, const BigInt& pow)
+    {
+        while(!number.isUnit())
+        {
+            if(!((number % pow).isZero())) break;
+            number /= pow;
+        }
+
+        return number.isUnit();
+    }
+
 };
 
 } // namespace BigInt
