@@ -53,16 +53,12 @@ constexpr bool is_integer()
     using Type = std::decay_t<T>;
     return std::is_same_v<Type, int> ||
             std::is_same_v<Type, unsigned> ||
-            std::is_same_v<Type, signed> ||
             std::is_same_v<Type, short> ||
             std::is_same_v<Type, unsigned short> ||
-            std::is_same_v<Type, signed short> ||
             std::is_same_v<Type, long> ||
-            std::is_same_v<Type, signed long> ||
             std::is_same_v<Type, unsigned long> ||
             std::is_same_v<Type, long long> ||
             std::is_same_v<Type, unsigned long long> ||
-            std::is_same_v<Type, signed long long> ||
             std::is_same_v<Type, uint8_t> ||
             std::is_same_v<Type, uint16_t> ||
             std::is_same_v<Type, uint32_t> ||
@@ -72,6 +68,22 @@ constexpr bool is_integer()
             std::is_same_v<Type, int32_t> ||
             std::is_same_v<Type, int64_t> ||
             std::is_same_v<Type, size_t>;
+}
+
+template<class T>
+constexpr bool is_unsigned()
+{
+    using Type = std::decay_t<T>;
+    return std::is_same_v<Type, unsigned> ||
+            std::is_same_v<Type, unsigned short> ||
+            std::is_same_v<Type, unsigned long> ||
+            std::is_same_v<Type, unsigned long long> ||
+            std::is_same_v<Type, uint8_t> ||
+            std::is_same_v<Type, uint16_t> ||
+            std::is_same_v<Type, uint32_t> ||
+            std::is_same_v<Type, uint64_t> ||
+            std::is_same_v<Type, size_t>;
+
 }
 
 namespace Operation
@@ -1542,10 +1554,13 @@ public:
     template<class T, class = typename std::enable_if_t<is_integer<T>()>>
     explicit operator T()
     {
-        T limit = isNegative() ? std::numeric_limits<T>::min()
-                               : std::numeric_limits<T>::max();
+        if(isNegative() && is_unsigned<T>()) return 0;
 
-        if(Converter::ToBinary::convert(limit).number.size() <= bit())
+        const short byteLenght = 8;
+        const unsigned short lenght = sizeof(T) * byteLenght;
+        const bool condition = (isNegative() ? is2Pow() : count() == bit());
+
+        if(lenght > bit() || (lenght == bit() && condition ) )
             return isNegative() ? -1*Converter::FromBinary::toInt<T>(Number())
                                 : Converter::FromBinary::toInt<T>(Number());
 

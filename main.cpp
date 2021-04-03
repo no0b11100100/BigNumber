@@ -27,7 +27,7 @@ public:
         m_time = std::chrono::duration_cast<TimeMeasurement>(std::chrono::system_clock::now() - startTime).count();
     }
 
-    void Time() const { std::cout << m_time << std::endl; }
+    void Time() const { std::cout << "time is " << m_time << std::endl; }
 
 private:
     size_t m_time;
@@ -37,18 +37,25 @@ template <class TimeMeasurement>
 class ScopedTimer
 {
     std::chrono::time_point<std::chrono::system_clock> startTime;
+
+    std::string TimeMeasurementToString()
+    {
+        return std::is_same_v<TimeMeasurement, ns> ? " ns" :
+               std::is_same_v<TimeMeasurement, mcs> ? " mcs" :
+               std::is_same_v<TimeMeasurement, ms> ? " ms" : " s";
+    }
+
 public:
 
-    template<class Callable, class ...Args>
-    ScopedTimer(Callable&& callable, Args&& ... args)
+    ScopedTimer()
     {
         startTime = std::chrono::system_clock::now();
-        std::invoke(std::forward<Callable>(callable), std::forward<Args>(args)...);
     }
 
     ~ScopedTimer()
     {
-        std::cout << std::chrono::duration_cast<TimeMeasurement>(std::chrono::system_clock::now() - startTime).count() << std::endl;
+        std::cout << std::chrono::duration_cast<TimeMeasurement>(std::chrono::system_clock::now() - startTime).count()
+                  << TimeMeasurementToString() << std::endl;
     }
 };
 
